@@ -1,0 +1,152 @@
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-header">
+  <h1>Add New Product <i class="fas fa-seedling"></i></h1>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'my_products' %}">My Products</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Add Product</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    <form method="post" enctype="multipart/form-data" class="product-form">
+      {% csrf_token %}
+      <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-8">
+          <div class="form-section">
+            <h3 class="section-title"><i class="fas fa-info-circle me-2"></i>Basic Information</h3>
+
+            <div class="mb-4">
+              <label class="form-label">Product Name <span class="text-danger">*</span></label>
+              <input type="text" name="name" class="form-control {% if form.name.errors %}is-invalid{% endif %}" placeholder="Organic Red Wheat" required value="{{ form.name.value|default:'' }}">
+              {% if form.name.errors %}
+              <div class="invalid-feedback">{{ form.name.errors.as_text }}</div>
+              {% endif %}
+            </div>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label">Category <span class="text-danger">*</span></label>
+                <select name="category" class="form-select {% if form.category.errors %}is-invalid{% endif %}" required>
+                  <option value="">Select Category</option>
+                  {% for value, label in form.category.field.choices %}
+                  <option value="{{ value }}" {% if form.category.value == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                {% if form.category.errors %}
+                <div class="invalid-feedback">{{ form.category.errors.as_text }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Price per Unit <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <span class="input-group-text">$</span>
+                  <input type="number" name="price_per_kg" class="form-control {% if form.price_per_kg.errors %}is-invalid{% endif %}" placeholder="2.50" step="0.01" required value="{{ form.price_per_kg.value|default:'' }}">
+                  <span class="input-group-text">/ kg</span>
+                </div>
+                {% if form.price_per_kg.errors %}
+                <div class="invalid-feedback">{{ form.price_per_kg.errors.as_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Product Description <span class="text-danger">*</span></label>
+              <textarea name="description" class="form-control {% if form.description.errors %}is-invalid{% endif %}" rows="4" placeholder="Describe your product in detail..." required>{{ form.description.value|default:'' }}</textarea>
+              {% if form.description.errors %}
+              <div class="invalid-feedback">{{ form.description.errors.as_text }}</div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 class="section-title"><i class="fas fa-images me-2"></i>Product Image</h3>
+            <div class="image-upload-container">
+              <label class="form-label">Upload Product Image <span class="text-danger">*</span></label>
+              <input type="file" name="image" accept="image/*" class="form-control {% if form.image.errors %}is-invalid{% endif %}" onchange="previewFileName(this)">
+              {% if form.image.errors %}
+              <div class="invalid-feedback d-block">{{ form.image.errors.as_text }}</div>
+              {% endif %}
+              <div class="mt-2 text-muted" id="file-name-preview"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+          <div class="form-sidebar">
+            <div class="form-section">
+              <h3 class="section-title"><i class="fas fa-cogs me-2"></i>Product Details</h3>
+
+              <div class="mb-4">
+                <label class="form-label">Stock Quantity <span class="text-danger">*</span></label>
+                <input type="number" name="stock_quantity" class="form-control {% if form.stock_quantity.errors %}is-invalid{% endif %}" placeholder="1000" required value="{{ form.stock_quantity.value|default:'' }}">
+                <small class="form-text">Available quantity in kilograms</small>
+                {% if form.stock_quantity.errors %}
+                <div class="invalid-feedback">{{ form.stock_quantity.errors.as_text }}</div>
+                {% endif %}
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">Harvest Date <span class="text-danger">*</span></label>
+                <input type="date" name="harvest_date" class="form-control {% if form.harvest_date.errors %}is-invalid{% endif %}" required value="{{ form.harvest_date.value|default:'' }}">
+                {% if form.harvest_date.errors %}
+                <div class="invalid-feedback">{{ form.harvest_date.errors.as_text }}</div>
+                {% endif %}
+              </div>
+
+              <div class="mb-4">
+                <label class="form-label">Certifications</label>
+                <div class="certification-tags">
+                  <div class="form-check">
+                    <input type="checkbox" name="is_organic" class="form-check-input {% if form.is_organic.errors %}is-invalid{% endif %}" id="organic" {% if form.is_organic.value %}checked{% endif %}>
+                    <label class="form-check-label" for="organic">
+                      <i class="fas fa-leaf me-1"></i>Organic Certified
+                    </label>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="sticky-submit">
+              <div class="summary-card">
+                <h5><i class="fas fa-clipboard-check me-2"></i>Summary</h5>
+                <ul class="summary-list">
+                  <li><span>Fields Completed:</span> <span class="text-success">--</span></li>
+                  <li><span>Last Saved:</span> Just Now</li>
+                </ul>
+                <div class="d-grid gap-2">
+                  <button type="submit" class="btn btn-success">
+                    <i class="fas fa-check-circle me-2"></i>Publish Product
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary">Save Draft</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- JS for filename preview -->
+<script>
+  function previewFileName(input) {
+    const file = input.files[0];
+    const preview = document.getElementById('file-name-preview');
+    if (file) {
+      preview.textContent = `Selected file: ${file.name}`;
+    } else {
+      preview.textContent = '';
+    }
+  }
+</script>
+{% endblock %}

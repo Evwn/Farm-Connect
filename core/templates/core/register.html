@@ -1,0 +1,71 @@
+<!-- register.html -->
+{% extends 'core/base.html' %} {% block content %}
+<div class="auth-container">
+  <div class="auth-card">
+    <div class="auth-header">
+      <h2 class="text-primary-green mb-4">Join FarmConnect</h2>
+      <p class="text-muted">Start your agricultural journey today</p>
+    </div>
+
+    <form method="post" class="auth-form">
+      {% csrf_token %}
+
+      <div class="form-group icon-input">
+        <i class="fas fa-user input-icon"></i>
+        <input
+          type="text"
+          name="username"
+          class="form-control"
+          placeholder="Username"
+          required
+        />
+      </div>
+
+      <div class="form-group icon-input">
+        <i class="fas fa-envelope input-icon"></i>
+        <input
+          type="email"
+          name="email"
+          class="form-control"
+          placeholder="Email"
+          required
+        />
+      </div>
+
+      <div class="form-group icon-input">
+        <i class="fas fa-lock input-icon"></i>
+        <input
+          type="password"
+          name="password1"
+          class="form-control"
+          placeholder="Password"
+          required
+        />
+      </div>
+
+      <div class="form-group icon-input">
+        <i class="fas fa-lock input-icon"></i>
+        <input
+          type="password"
+          name="password2"
+          class="form-control"
+          placeholder="Confirm Password"
+          required
+        />
+      </div>
+
+      <div class="form-group">
+        <select name="role" class="form-select role-select">
+          <option value="farmer">Farmer</option>
+          <option value="buyer">Buyer</option>
+        </select>
+      </div>
+
+      <button class="btn btn-auth w-100" type="submit">
+        <span class="btn-text">Create Account</span>
+        <i class="fas fa-arrow-right btn-icon"></i>
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

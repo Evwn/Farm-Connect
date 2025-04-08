@@ -1,0 +1,48 @@
+<!-- harvest_calendar.html -->
+{% extends 'core/dashboard_base.html' %} {% block content %}
+<div class="dashboard-header">
+  <h1>Harvest Calendar <i class="fas fa-calendar-alt"></i></h1>
+  <button
+    class="btn btn-success"
+    data-bs-toggle="modal"
+    data-bs-target="#addHarvestModal"
+  >
+    <i class="fas fa-plus me-2"></i>Add Harvest
+  </button>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    <div class="calendar-container">
+      <div class="calendar-header">
+        <h3>December 2023</h3>
+        <div class="calendar-controls">
+          <button class="btn btn-outline-success"><</button>
+          <button class="btn btn-outline-success">></button>
+        </div>
+      </div>
+      <div class="calendar-grid">
+        <!-- Calendar days with harvest events -->
+        <div class="calendar-day">
+          <div class="day-number">15</div>
+          <div class="harvest-event bg-success">
+            <small>Wheat Harvest</small>
+          </div>
+        </div>
+        <!-- Add more calendar days -->
+      </div>
+    </div>
+
+    <div class="upcoming-harvests mt-4">
+      <h4>Upcoming Harvests</h4>
+      <div class="harvest-list">
+        <div class="harvest-item">
+          <i class="fas fa-circle text-success"></i>
+          <span>Maize Harvest - 20 Dec</span>
+        </div>
+        <!-- Add more harvest items -->
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

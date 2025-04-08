@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Dashboard | FarmConnect</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'core/css/dashboard.css' %}" />
+  </head>
+  <body class="dashboard-body">
+    <!-- Fixed Top Navigation -->
+    <nav class="dashboard-nav navbar navbar-expand-lg fixed-top">
+      <div class="container-fluid">
+        <div class="nav-brand">
+          <i class="fas fa-seedling"></i>
+          <span>FarmConnect</span>
+        </div>
+
+        <div class="nav-controls d-flex align-items-center gap-4">
+          <!-- Search Form -->
+          <form class="d-flex search-form" role="search">
+            <div class="input-group">
+              <input
+                type="search"
+                class="form-control search-input"
+                placeholder="Search products..."
+                aria-label="Search"
+              />
+              <button class="btn btn-success search-btn" type="submit">
+                <i class="fas fa-search"></i>
+              </button>
+            </div>
+          </form>
+
+          <!-- Profile Dropdown -->
+          <div class="dropdown">
+            <button
+              class="btn btn-link dropdown-toggle profile-btn"
+              type="button"
+              id="profileDropdown"
+              data-bs-toggle="dropdown"
+              aria-expanded="false"
+            >
+              <i class="fas fa-user-circle me-2"></i>
+              <span>{{ user.username }}</span>
+            </button>
+            <ul
+              class="dropdown-menu dropdown-menu-end"
+              aria-labelledby="profileDropdown"
+            >
+              <li>
+                <a class="dropdown-item" href="#">
+                  <i class="fas fa-user me-2"></i>Profile
+                </a>
+              </li>
+              <li>
+                <a class="dropdown-item" href="#">
+                  <i class="fas fa-cog me-2"></i>Settings
+                </a>
+              </li>
+              <li><hr class="dropdown-divider" /></li>
+              <li>
+                <form
+                  action="{% url 'logout' %}"
+                  method="post"
+                  class="dropdown-item"
+                >
+                  {% csrf_token %}
+                  <button
+                    type="submit"
+                    class="btn btn-link p-0 text-decoration-none"
+                  >
+                    <i class="fas fa-sign-out-alt me-2"></i>Logout
+                  </button>
+                </form>
+              </li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="dashboard-container">
+      <!-- Sidebar (right side) -->
+      <aside class="dashboard-sidebar">
+        <nav class="sidebar-nav">
+         
+          <ul class="nav-list">
+            <li class="nav-item active">
+              <a href="{% url 'dashboard' %}">
+                <i class="fas fa-home"></i>
+                <span>Dashboard</span>
+              </a>
+            </li>
+
+            <!-- Farmer-Specific Links -->
+            {% if user.role == 'farmer' %}
+            <li class="nav-item">
+              <a href="{% url 'add_product' %}">
+                <i class="fas fa-seedling"></i>
+                <span>Add Products</span>
+                <span class="badge">15</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{% url 'my_products' %}">
+                <i class="fas fa-seedling"></i>
+                <span>My Products</span>
+                <span class="badge">15</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{% url 'add_farm' %}">
+                <i class="fas fa-tractor"></i>
+                <span>Add New Farm</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{% url 'farm_management' %}">
+                <i class="fas fa-tractor"></i>
+                <span>Farm Management</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{% url 'orders' %}">
+                <i class="fas fa-clipboard-list"></i>
+                <span>Orders</span>
+                <span class="badge">8</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#">
+                <i class="fas fa-chart-line"></i>
+                <span>Analytics</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#">
+                <i class="fas fa-calendar-alt"></i>
+                <span>Harvest Calendar</span>
+              </a>
+            </li>
+            {% endif %}
+
+            <!-- Buyer-Specific Links -->
+            {% if user.role == 'buyer' %}
+            <li class="nav-item">
+              <a href="#">
+                <i class="fas fa-store"></i>
+                <span>Browse Farms</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="{% url 'browse_products' %}">
+                <i class="fas fa-store"></i>
+                <span>Browse Products</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#">
+                <i class="fas fa-shopping-basket"></i>
+                <span>My Purchases</span>
+                <span class="badge">3</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#">
+                <i class="fas fa-heart"></i>
+                <span>Favorites</span>
+                <span class="badge">12</span>
+              </a>
+            </li>
+            <li class="nav-item">
+              <a href="#">
+                <i class="fas fa-box-open"></i>
+                <span>Order History</span>
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </nav>
+      </aside>
+
+      <!-- Main Content -->
+      <main class="dashboard-main">{% block content %}{% endblock %}</main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    {% if messages %}
+    <script>
+      {% for message in messages %}
+          Swal.fire({
+              title: "{{ message.tags|capfirst }}",
+              text: "{{ message }}",
+              icon: "{{ message.tags }}",
+              confirmButtonColor: "#198754",
+              timer: 3000,
+              timerProgressBar: true
+          });
+      {% endfor %}
+    </script>
+    {% endif %}
+  </body>
+</html>

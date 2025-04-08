@@ -1,0 +1,154 @@
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-header">
+  <h1>Register New Farm <i class="fas fa-tractor"></i></h1>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item"><a href="{% url 'dashboard' %}">Dashboard</a></li>
+      <li class="breadcrumb-item"><a href="{% url 'farm_management' %}">Farm Management</a></li>
+      <li class="breadcrumb-item active" aria-current="page">Add Farm</li>
+    </ol>
+  </nav>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    <form method="post" enctype="multipart/form-data" class="farm-form">
+      {% csrf_token %}
+      <div class="row">
+        <!-- Left Column -->
+        <div class="col-md-8">
+          <div class="form-section">
+            <h3 class="section-title"><i class="fas fa-map-marked-alt me-2"></i>Farm Location</h3>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-6">
+                <label class="form-label">Farm Name <span class="text-danger">*</span></label>
+                <input type="text" name="name" class="form-control {% if form.name.errors %}is-invalid{% endif %}" placeholder="Green Valley Farm" required value="{{ form.name.value|default:'' }}">
+                {% if form.name.errors %}
+                <div class="invalid-feedback">{{ form.name.errors.as_text }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-6">
+                <label class="form-label">Established Year <span class="text-danger">*</span></label>
+                <input type="number" name="established_year" class="form-control {% if form.established_year.errors %}is-invalid{% endif %}" placeholder="2010" min="1900" max="2025" required value="{{ form.established_year.value|default:'' }}">
+                {% if form.established_year.errors %}
+                <div class="invalid-feedback">{{ form.established_year.errors.as_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Full Address <span class="text-danger">*</span></label>
+              <textarea name="address" class="form-control {% if form.address.errors %}is-invalid{% endif %}" rows="2" placeholder="Enter full farm address..." required>{{ form.address.value|default:'' }}</textarea>
+              {% if form.address.errors %}
+              <div class="invalid-feedback">{{ form.address.errors.as_text }}</div>
+              {% endif %}
+            </div>
+
+            <div class="map-preview mb-4">
+              <div class="map-placeholder">
+                <i class="fas fa-map-marker-alt fa-3x text-success"></i>
+                <p>Farm location preview</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <h3 class="section-title"><i class="fas fa-info-circle me-2"></i>Farm Details</h3>
+
+            <div class="row g-3 mb-4">
+              <div class="col-md-4">
+                <label class="form-label">Total Area <span class="text-danger">*</span></label>
+                <div class="input-group">
+                  <input type="number" name="total_area" class="form-control {% if form.total_area.errors %}is-invalid{% endif %}" placeholder="25" required value="{{ form.total_area.value|default:'' }}">
+                  <span class="input-group-text">acres</span>
+                </div>
+                {% if form.total_area.errors %}
+                <div class="invalid-feedback">{{ form.total_area.errors.as_text }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Primary Crop</label>
+                <input type="text" name="primary_crop" class="form-control {% if form.primary_crop.errors %}is-invalid{% endif %}" placeholder="Wheat" value="{{ form.primary_crop.value|default:'' }}">
+                {% if form.primary_crop.errors %}
+                <div class="invalid-feedback">{{ form.primary_crop.errors.as_text }}</div>
+                {% endif %}
+              </div>
+              <div class="col-md-4">
+                <label class="form-label">Soil Type</label>
+                <select name="soil_type" class="form-select {% if form.soil_type.errors %}is-invalid{% endif %}">
+                  <option value="">Select Soil Type</option>
+                  {% for value, label in form.soil_type.field.choices %}
+                    <option value="{{ value }}" {% if form.soil_type.value == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                {% if form.soil_type.errors %}
+                <div class="invalid-feedback">{{ form.soil_type.errors.as_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label class="form-label">Farm Description <span class="text-danger">*</span></label>
+              <textarea name="description" class="form-control {% if form.description.errors %}is-invalid{% endif %}" rows="4" placeholder="Describe your farm's features and practices..." required>{{ form.description.value|default:'' }}</textarea>
+              {% if form.description.errors %}
+              <div class="invalid-feedback">{{ form.description.errors.as_text }}</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column -->
+        <div class="col-md-4">
+          <div class="form-sidebar">
+            <div class="form-section">
+              <h3 class="section-title"><i class="fas fa-certificate me-2"></i>Certifications</h3>
+              <div class="form-check">
+                <input type="checkbox" name="is_organic_certified" class="form-check-input {% if form.is_organic_certified.errors %}is-invalid{% endif %}" id="organic" {% if form.is_organic_certified.value %}checked{% endif %}>
+                <label class="form-check-label" for="organic">
+                  <i class="fas fa-leaf me-1"></i>Organic Certified
+                </label>
+              </div>
+              <div class="form-check">
+                <input type="checkbox" name="is_fair_trade_certified" class="form-check-input {% if form.is_fair_trade_certified.errors %}is-invalid{% endif %}" id="fairtrade" {% if form.is_fair_trade_certified.value %}checked{% endif %}>
+                <label class="form-check-label" for="fairtrade">
+                  <i class="fas fa-hand-holding-heart me-1"></i>Fair Trade
+                </label>
+              </div>
+            </div>
+
+            <div class="form-section">
+              <h3 class="section-title"><i class="fas fa-images me-2"></i>Farm Gallery</h3>
+              <div class="image-upload-container">
+                <label class="form-label">Upload Farm Images</label>
+                <input type="file" name="gallery_images" class="form-control {% if form.gallery_images.errors %}is-invalid{% endif %}" accept="image/*">
+                {% if form.gallery_images.errors %}
+                <div class="invalid-feedback d-block">{{ form.gallery_images.errors.as_text }}</div>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="sticky-submit mt-4">
+              <div class="summary-card">
+                <h5><i class="fas fa-clipboard-check me-2"></i>Ready to Register</h5>
+                <div class="d-grid gap-2">
+                  <button type="submit" class="btn btn-success">
+                    <i class="fas fa-check-circle me-2"></i>Save Farm Details
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary">Save Draft</button>
+                </div>
+                <div class="form-text mt-2">
+                  <i class="fas fa-info-circle me-2"></i>All fields marked with * are required
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

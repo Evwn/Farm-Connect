@@ -1,0 +1,87 @@
+{% extends 'core/base.html' %} {% block content %}
+<!-- Hero Section -->
+<section class="hero-section vh-100 d-flex align-items-center">
+  <div class="container">
+    <div class="row align-items-center">
+      <div class="col-lg-6">
+        <h1 class="display-4 fw-bold mb-4">
+          Fresh From Farm<br />
+          <span class="text-success">To Your Table</span>
+        </h1>
+        <p class="lead mb-4">
+          Connecting agricultural producers directly with conscious consumers.
+        </p>
+        {% if not user.is_authenticated %}
+        <a href="{% url 'register' %}" class="btn btn-success btn-lg px-5 py-3">
+          Join Our Community <i class="fas fa-arrow-right ms-2"></i>
+        </a>
+        {% endif %}
+      </div>
+      <div class="col-lg-6">
+        <img
+          src="https://images.unsplash.com/photo-1625246333195-78d9c38ad449?ixlib=rb-4.0.3&auto=format&fit=crop&w=1470&q=80"
+          alt="Farm Produce"
+          class="img-fluid rounded-3 shadow-lg"
+        />
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Features Section -->
+<section class="py-5 bg-accent-mint">
+    <div class="container">
+      <div class="text-center mb-5">
+        <h2 class="fw-bold text-primary-green">Why FarmConnect?</h2>
+        <p class="text-muted">Sustainable agriculture marketplace</p>
+      </div>
+  
+      <div class="row g-4">
+        <!-- Farmer First Card -->
+        <div class="col-md-4">
+          <div class="card h-100 border-0 shadow-sm hover-effect">
+            <div class="card-body text-center p-4">
+              <div class="icon-wrapper bg-success mb-3">
+                <i class="fas fa-tractor fa-3x text-white"></i>
+              </div>
+              <h5 class="fw-bold text-dark mb-3">Farmer First</h5>
+              <p class="text-muted mb-0">
+                Direct market access with fair pricing and transparent transactions
+              </p>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Secure Trade Card -->
+        <div class="col-md-4">
+          <div class="card h-100 border-0 shadow-sm hover-effect">
+            <div class="card-body text-center p-4">
+              <div class="icon-wrapper bg-success mb-3">
+                <i class="fas fa-shield-alt fa-3x text-white"></i>
+              </div>
+              <h5 class="fw-bold text-dark mb-3">Secure Transactions</h5>
+              <p class="text-muted mb-0">
+                Escrow-protected payments and verified user profiles for safe trading
+              </p>
+            </div>
+          </div>
+        </div>
+  
+        <!-- Fresh Produce Card -->
+        <div class="col-md-4">
+          <div class="card h-100 border-0 shadow-sm hover-effect">
+            <div class="card-body text-center p-4">
+              <div class="icon-wrapper bg-success mb-3">
+                <i class="fas fa-leaf fa-3x text-white"></i>
+              </div>
+              <h5 class="fw-bold text-dark mb-3">Fresh Produce</h5>
+              <p class="text-muted mb-0">
+                Farm-to-table freshness with quality assurance and organic options
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}

@@ -1,0 +1,45 @@
+<!-- orders.html -->
+{% extends 'core/dashboard_base.html' %} {% block content %}
+<div class="dashboard-header">
+  <h1>Orders <i class="fas fa-clipboard-list"></i></h1>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    <div class="order-filters mb-4">
+      <div class="btn-group">
+        <button class="btn btn-outline-success active">All (8)</button>
+        <button class="btn btn-outline-success">Pending (3)</button>
+        <button class="btn btn-outline-success">Completed (5)</button>
+      </div>
+    </div>
+
+    <div class="order-list">
+      <div class="order-item hover-effect">
+        <div class="order-header">
+          <h5>Order #12345</h5>
+          <span class="badge bg-warning">Pending</span>
+        </div>
+        <div class="order-details">
+          <div class="detail">
+            <i class="fas fa-user"></i>
+            <span>John Doe</span>
+          </div>
+          <div class="detail">
+            <i class="fas fa-box"></i>
+            <span>500kg Organic Wheat</span>
+          </div>
+          <div class="detail">
+            <i class="fas fa-calendar"></i>
+            <span>Delivery by: 25 Dec 2023</span>
+          </div>
+        </div>
+        <div class="order-actions">
+          <button class="btn btn-success btn-sm">Mark as Shipped</button>
+        </div>
+      </div>
+      <!-- Add more order items -->
+    </div>
+  </div>
+</div>
+{% endblock %}

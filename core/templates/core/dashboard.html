@@ -1,0 +1,99 @@
+<!-- dashboard.html -->
+{% extends 'core/dashboard_base.html' %} {% block content %}
+<div class="dashboard-header">
+  <h1>
+    Welcome back, {{ user.username }}! <i class="fas fa-hand-sparkles"></i>
+  </h1>
+  <p class="role-badge">{{ user.role|title }}</p>
+</div>
+
+<div class="dashboard-grid">
+  {% if user.role == 'farmer' %}
+  <!-- Farmer Cards -->
+  <div class="dashboard-card harvest-card">
+    <div class="card-icon">
+      <i class="fas fa-apple-alt"></i>
+    </div>
+    <div class="card-content">
+      <h3>Current Harvest</h3>
+      <div class="card-stats">
+        <div class="stat-item">
+          <span class="stat-value">5,420kg</span>
+          <span class="stat-label">Available</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-value">82%</span>
+          <span class="stat-label">Sold</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-card orders-card">
+    <div class="card-icon">
+      <i class="fas fa-clipboard-list"></i>
+    </div>
+    <div class="card-content">
+      <h3>Recent Orders</h3>
+      <div class="order-list">
+        <div class="order-item">
+          <span>Organic Wheat</span>
+          <span>500kg</span>
+          <span class="status processing">Processing</span>
+        </div>
+        <!-- Add more order items -->
+      </div>
+    </div>
+  </div>
+
+  {% elif user.role == 'buyer' %}
+  <!-- Buyer Cards -->
+  <div class="dashboard-card recommendations-card">
+    <div class="card-icon">
+      <i class="fas fa-star"></i>
+    </div>
+    <div class="card-content">
+      <h3>Recommended Farms</h3>
+      <div class="farm-list">
+        <div class="farm-item">
+          <img src="farm-logo.jpg" alt="Farm" />
+          <div class="farm-info">
+            <h4>Green Valley Farm</h4>
+            <div class="rating"><i class="fas fa-star"></i> 4.8</div>
+          </div>
+        </div>
+        <!-- Add more farm items -->
+      </div>
+    </div>
+  </div>
+
+  <div class="dashboard-card cart-card">
+    <div class="card-icon">
+      <i class="fas fa-shopping-cart"></i>
+    </div>
+    <div class="card-content">
+      <h3>Current Cart</h3>
+      <div class="cart-summary">
+        <span class="items">3 items</span>
+        <span class="total">$245.00</span>
+      </div>
+      <button class="checkout-btn">Proceed to Checkout</button>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Common Cards -->
+  <div class="dashboard-card weather-card">
+    <div class="card-icon">
+      <i class="fas fa-cloud-sun"></i>
+    </div>
+    <div class="card-content">
+      <h3>Weather Forecast</h3>
+      <div class="weather-info">
+        <span class="temp">24°C</span>
+        <span class="condition">Sunny</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
