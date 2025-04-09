@@ -57,26 +57,32 @@ def my_products(request):
     products = Product.objects.filter(farmer=request.user).order_by('-created_at')
     return render(request, 'core/my_products.html', {'products': products})
 
+def update_product(request, product_id):
+    # Get the product to update
+    product = get_object_or_404(Product, id=product_id, farmer=request.user)
+
+    if request.method == 'POST':
+        # Create a form instance with the submitted data and product instance
+        form = ProductForm(request.POST, request.FILES, instance=product)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Product updated successfully!")
+            return redirect('my_products')  # Redirect back to the list of products
+        else:
+            messages.error(request, "Please correct the errors below.")
+    else:
+        # If it's a GET request, create the form with the existing product data
+        form = ProductForm(instance=product)
+
+    return render(request, 'core/update_product.html', {'form': form, 'product': product})
+
 @login_required
+@require_POST
 def delete_product(request, product_id):
     product = get_object_or_404(Product, id=product_id, farmer=request.user)
     product.delete()
     messages.success(request, "Product deleted successfully.")
     return redirect('my_products')
-
-@login_required
-def update_product(request, product_id):
-    product = get_object_or_404(Product, id=product_id, farmer=request.user)
-    if request.method == 'POST':
-        form = ProductForm(request.POST, request.FILES, instance=product)
-        if form.is_valid():
-            form.save()
-            messages.success(request, "Product updated successfully.")
-            return redirect('my_products')
-    else:
-        form = ProductForm(instance=product)
-    return render(request, 'core/update_product.html', {'form': form, 'product': product})
-
 
 ## Farm Management Features ##
 @login_required
@@ -101,25 +107,26 @@ def farm_management(request):
     farms = Farm.objects.filter(farmer=request.user)
     return render(request, 'core/farm_management.html', {'farms': farms})
 
-### Update Farm Feature ###
-@login_required
 def update_farm(request, farm_id):
+    # Get the farm to update
     farm = get_object_or_404(Farm, id=farm_id, farmer=request.user)
 
     if request.method == 'POST':
+        # Create a form instance with the submitted data and farm instance
         form = FarmForm(request.POST, request.FILES, instance=farm)
         if form.is_valid():
             form.save()
-            messages.success(request, "Farm updated successfully.")
-            return redirect('farm_management')
+            messages.success(request, "Farm updated successfully!")
+            return redirect('farm_management')  # Redirect back to the list of farms
         else:
             messages.error(request, "Please correct the errors below.")
     else:
+        # If it's a GET request, create the form with the existing farm data
         form = FarmForm(instance=farm)
 
     return render(request, 'core/update_farm.html', {'form': form, 'farm': farm})
 
-### Delete Farm Feature ###
+# Delete Farm Feature
 @login_required
 @require_POST
 def delete_farm(request, farm_id):
@@ -187,6 +194,27 @@ def browse_products(request):
         'cart_total': cart_total
     }
     return render(request, 'core/browse_products.html', context)
+@login_required
+def browse_farms(request):
+    # Fetch all farms
+    farms = Farm.objects.all()
+
+    # Context to pass to the template
+    context = {
+        'farms': farms,
+    }
+
+    return render(request, 'core/browse_farms.html', context)
+@login_required
+def farm_detail(request, farm_id):
+    # Fetch the specific farm by its ID
+    farm = get_object_or_404(Farm, id=farm_id)
+    
+    context = {
+        'farm': farm,
+    }
+
+    return render(request, 'core/farm_detail.html', context)
 
 # Order Product functionality (This replaces the old Add to Cart functionality)
 @login_required
@@ -256,3 +284,16 @@ def order_history(request):
         'orders': orders
     }
     return render(request, 'core/order_history.html', context)
+
+# My Purchases function for buyers
+@login_required
+def my_purchases(request):
+    # Fetch completed orders for the logged-in buyer
+    completed_orders = Order.objects.filter(buyer=request.user, status='Completed').order_by('-created_at')
+
+    # Context to pass to the template
+    context = {
+        'completed_orders': completed_orders,
+    }
+
+    return render(request, 'core/my_purchases.html', context)

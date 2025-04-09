@@ -1,0 +1,52 @@
+{% extends 'core/dashboard_base.html' %} {% load static %} {% block content %}
+<!-- My Purchases Page Header -->
+<div class="dashboard-header">
+  <h1 class="dashboard-title">
+    My Purchases <i class="fas fa-box-open"></i>
+  </h1>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">My Purchases</li>
+    </ol>
+  </nav>
+</div>
+
+<!-- My Purchases Table -->
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    {% if completed_orders %}
+    <div class="table-responsive">
+      <table class="table table-hover">
+        <thead>
+          <tr>
+            <th>Product</th>
+            <th>Quantity</th>
+            <th>Total Price</th>
+            <th>Purchase Date</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for order in completed_orders %}
+          <tr>
+            <td>{{ order.product.name }}</td>
+            <td>{{ order.quantity }} kg</td>
+            <td>${{ order.total_price }}</td>
+            <td>{{ order.created_at|date:"M d, Y" }}</td>
+            <td>
+              <span class="badge bg-success">{{ order.status }}</span>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="alert alert-info">You have no completed orders yet.</div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

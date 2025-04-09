@@ -136,18 +136,13 @@
                 <span class="badge">8</span>
               </a>
             </li>
-            <li class="nav-item">
-              <a href="#">
-                <i class="fas fa-chart-line"></i>
-                <span>Analytics</span>
-              </a>
-            </li>
+            
             {% endif %}
 
             <!-- Buyer-Specific Links -->
             {% if user.role == 'buyer' %}
             <li class="nav-item">
-              <a href="#">
+              <a href="{% url 'browse_farms' %}">
                 <i class="fas fa-store"></i>
                 <span>Browse Farms</span>
               </a>
@@ -159,7 +154,7 @@
               </a>
             </li>
             <li class="nav-item">
-              <a href="#">
+              <a href="{% url 'my_purchases' %}">
                 <i class="fas fa-shopping-basket"></i>
                 <span>My Purchases</span>
                 <span class="badge">3</span>

@@ -1,75 +1,59 @@
-{% extends 'core/dashboard_base.html' %} {% load static %} {% block content %}
-
+{% extends 'core/dashboard_base.html' %} {% block content %}
 <div class="dashboard-header">
   <h1>Farm Management <i class="fas fa-tractor"></i></h1>
 </div>
 
-<div class="dashboard-grid">
+<div class="dashboard-grid mt-4">
   <div class="dashboard-card">
+    {% if farms %}
     <div class="table-responsive">
       <table class="table table-hover">
         <thead>
           <tr>
             <th>Farm</th>
-            <th>Address</th>
+            <th>Location</th>
+            <th>Area</th>
             <th>Primary Crop</th>
-            <th>Total Area</th>
-            <th>Certifications</th>
             <th>Actions</th>
           </tr>
         </thead>
         <tbody>
           {% for farm in farms %}
           <tr class="hover-effect">
-            <td>
-              <strong>{{ farm.name }}</strong><br />
-              <small class="text-muted"
-                >Established {{ farm.established_year }}</small
-              >
-            </td>
+            <td>{{ farm.name }}</td>
             <td>{{ farm.address }}</td>
-            <td>{{ farm.primary_crop }}</td>
             <td>{{ farm.total_area }} acres</td>
-            <td>
-              {% if farm.is_organic_certified %}
-              <span class="badge bg-success me-1">Organic</span>
-              {% endif %} {% if farm.is_fair_trade_certified %}
-              <span class="badge bg-primary">Fair Trade</span>
-              {% endif %}
-            </td>
+            <td>{{ farm.primary_crop }}</td>
             <td>
               <a
                 href="{% url 'update_farm' farm.id %}"
-                class="btn btn-sm btn-outline-secondary"
+                class="btn btn-sm btn-outline-primary"
               >
                 <i class="fas fa-edit"></i>
               </a>
               <form
-                method="post"
                 action="{% url 'delete_farm' farm.id %}"
-                class="d-inline"
+                method="post"
+                style="display: inline"
               >
                 {% csrf_token %}
                 <button
-                  class="btn btn-sm btn-outline-danger"
-                  onclick="return confirm('Are you sure?')"
+                  type="submit"
+                  class="btn btn-sm btn-outline-danger ms-2"
+                  onclick="return confirm('Are you sure you want to delete this farm?');"
                 >
                   <i class="fas fa-trash"></i>
                 </button>
               </form>
             </td>
           </tr>
-          {% empty %}
-          <tr>
-            <td colspan="6" class="text-center text-muted">
-              No farms registered yet.
-            </td>
-          </tr>
           {% endfor %}
         </tbody>
       </table>
     </div>
+    {% else %}
+    <div class="alert alert-info">You haven't added any farms yet.</div>
+    {% endif %}
   </div>
 </div>
-
 {% endblock %}

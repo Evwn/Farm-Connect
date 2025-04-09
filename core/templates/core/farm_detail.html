@@ -1,0 +1,127 @@
+{% extends 'core/dashboard_base.html' %} {% load static %} {% block content %}
+<style>
+  .farm-detail-wrapper {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 2rem;
+  }
+
+  .farm-detail-header {
+    text-align: center;
+    margin-bottom: 2rem;
+  }
+
+  .farm-detail-image {
+    width: 100%;
+    max-height: 500px;
+    object-fit: cover;
+    border-radius: 16px;
+    margin-bottom: 1.5rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+
+  .farm-detail-body {
+    background: #ffffff;
+    padding: 2rem;
+    border-radius: 16px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  }
+
+  .farm-detail-body p {
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    padding: 0.8rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .farm-detail-body strong {
+    color: #2b5a46;
+    min-width: 180px;
+    display: inline-block;
+  }
+
+  .breadcrumb {
+    background: #f8f9fa;
+    border-radius: 8px;
+    padding: 0.75rem 1rem;
+  }
+
+  .dashboard-title {
+    color: #2b5a46;
+    margin-bottom: 1rem;
+  }
+
+  .farm-location {
+    color: #6c757d;
+    font-size: 1.1rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (max-width: 768px) {
+    .farm-detail-wrapper {
+      padding: 1rem;
+    }
+
+    .farm-detail-body {
+      padding: 1rem;
+    }
+
+    .farm-detail-body p {
+      font-size: 1rem;
+    }
+  }
+</style>
+
+<!-- Farm Detail Page Header -->
+<div class="dashboard-header">
+  <h1 class="dashboard-title">
+    Farm Details: {{ farm.name }} <i class="fas fa-tractor"></i>
+  </h1>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{% url 'browse_farms' %}">Browse Farms</a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">
+        {{ farm.name }}
+      </li>
+    </ol>
+  </nav>
+</div>
+
+<!-- Farm Details -->
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    <div class="farm-detail-wrapper">
+      <div class="farm-detail-header">
+        <img
+          src="{% if farm.gallery_images %}{{ farm.gallery_images.url }}{% else %}{% static 'images/default-farm.jpg' %}{% endif %}"
+          alt="{{ farm.name }}"
+          class="farm-detail-image"
+        />
+        <h2>{{ farm.name }}</h2>
+        <p class="farm-location">{{ farm.address }}</p>
+      </div>
+
+      <div class="farm-detail-body">
+        <p><strong>Description:</strong> {{ farm.description }}</p>
+        <p><strong>Primary Crop:</strong> {{ farm.primary_crop }}</p>
+        <p><strong>Soil Type:</strong> {{ farm.get_soil_type_display }}</p>
+        <p><strong>Total Area:</strong> {{ farm.total_area }} acres</p>
+        <p><strong>Established Year:</strong> {{ farm.established_year }}</p>
+        <p>
+          <strong>Organic Certified:</strong>
+          {% if farm.is_organic_certified %}Yes{% else %}No{% endif %}
+        </p>
+        <p>
+          <strong>Fair Trade Certified:</strong>
+          {% if farm.is_fair_trade_certified %}Yes{% else %}No{% endif %}
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
