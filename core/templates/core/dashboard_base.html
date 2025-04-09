@@ -93,7 +93,6 @@
       <!-- Sidebar (right side) -->
       <aside class="dashboard-sidebar">
         <nav class="sidebar-nav">
-         
           <ul class="nav-list">
             <li class="nav-item active">
               <a href="{% url 'dashboard' %}">
@@ -143,12 +142,6 @@
                 <span>Analytics</span>
               </a>
             </li>
-            <li class="nav-item">
-              <a href="#">
-                <i class="fas fa-calendar-alt"></i>
-                <span>Harvest Calendar</span>
-              </a>
-            </li>
             {% endif %}
 
             <!-- Buyer-Specific Links -->
@@ -172,15 +165,9 @@
                 <span class="badge">3</span>
               </a>
             </li>
+
             <li class="nav-item">
-              <a href="#">
-                <i class="fas fa-heart"></i>
-                <span>Favorites</span>
-                <span class="badge">12</span>
-              </a>
-            </li>
-            <li class="nav-item">
-              <a href="#">
+              <a href="{% url 'order_history' %}">
                 <i class="fas fa-box-open"></i>
                 <span>Order History</span>
               </a>

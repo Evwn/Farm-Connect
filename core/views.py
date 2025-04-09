@@ -1,11 +1,16 @@
+from decimal import Decimal  # Add this at the top
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .forms import CustomUserCreationForm, ProductForm, FarmForm
+from django.db.models import Q  # Import Q for complex queries
 from django.core.paginator import Paginator  # Import Paginator
+from django.http import JsonResponse  # Import JsonResponse for JSON responses
+import json  # Import json for handling JSON data
 from django.views.decorators.http import require_POST
-from .models import Product, Farm  # Import the Product and Farm models
+from django.views.decorators.csrf import csrf_exempt  # Import csrf_exempt
+from .models import Product, Farm, Order  # Import the Product, Farm, and Order models
 
 def home(request):
     return render(request, 'core/home.html')
@@ -33,10 +38,10 @@ def dashboard(request):
 @login_required
 def add_product(request):
     if request.method == 'POST':
-        form = ProductForm(request.POST)
+        form = ProductForm(request.POST, request.FILES)
         if form.is_valid():
             product = form.save(commit=False)
-            product.farmer = request.user  # assuming your Product model has a foreign key to CustomUser
+            product.farmer = request.user
             product.save()
             messages.success(request, "Product added successfully!")
             return redirect('add_product')
@@ -44,7 +49,6 @@ def add_product(request):
             messages.error(request, "Please correct the errors below.")
     else:
         form = ProductForm()
-
     return render(request, 'core/add_product.html', {'form': form})
 
 ### Product Management Features ###
@@ -124,38 +128,131 @@ def delete_farm(request, farm_id):
     messages.success(request, "Farm deleted successfully.")
     return redirect('farm_management')
 
-
-
 @login_required
 def orders(request):
-    return render(request, 'core/orders.html')
+    status_filter = request.GET.get('status', 'all')
+    orders = Order.objects.filter(product__farmer=request.user)
+    
+    if status_filter != 'all':
+        orders = orders.filter(status=status_filter.capitalize())
+    
+    status_counts = {
+        'all': Order.objects.filter(product__farmer=request.user).count(),
+        'pending': Order.objects.filter(product__farmer=request.user, status='Pending').count(),
+        'processing': Order.objects.filter(product__farmer=request.user, status='Processing').count(),
+        'shipped': Order.objects.filter(product__farmer=request.user, status='Shipped').count(),
+        'completed': Order.objects.filter(product__farmer=request.user, status='Completed').count(),
+        'cancelled': Order.objects.filter(product__farmer=request.user, status='Cancelled').count(),
+    }
 
-
-
-
-
-## Buyer  methods
+    context = {
+        'orders': orders.order_by('-created_at'),
+        'status_filter': status_filter,
+        'status_counts': status_counts
+    }
+    return render(request, 'core/orders.html', context)
 
 @login_required
+@require_POST
+def update_order_status(request, order_id):
+    order = get_object_or_404(Order, id=order_id, product__farmer=request.user)
+    new_status = request.POST.get('status')
+    
+    if new_status in dict(Order.STATUS_CHOICES):
+        order.status = new_status
+        order.save()
+        messages.success(request, f"Order #{order.id} status updated to {new_status}")
+    else:
+        messages.error(request, "Invalid status update")
+    
+    return redirect('orders')
+
+
+### Buyer Features ###
+
+# View products for buyers
+@login_required
 def browse_products(request):
-    category = request.GET.get('category')
-    search = request.GET.get('search')
-    min_price = request.GET.get('min_price')
-    max_price = request.GET.get('max_price')
-
     products = Product.objects.all()
+    pending_orders = Order.objects.filter(buyer=request.user, status='Pending')
+    
+    # Add category choices to context
+    product_categories = Product.CATEGORY_CHOICES
+    cart_total = sum(order.total_price for order in pending_orders)
+    
+    context = {
+        'products': products,
+        'pending_orders': pending_orders,
+        'product_categories': product_categories,
+        'cart_total': cart_total
+    }
+    return render(request, 'core/browse_products.html', context)
 
-    if category:
-        products = products.filter(category__iexact=category)
-    if search:
-        products = products.filter(name__icontains=search)
-    if min_price:
-        products = products.filter(price_per_kg__gte=min_price)
-    if max_price:
-        products = products.filter(price_per_kg__lte=max_price)
+# Order Product functionality (This replaces the old Add to Cart functionality)
+@login_required
+@csrf_exempt  
+@require_POST
+def order_product(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    
+    try:
+        data = json.loads(request.body)
+        quantity = int(data.get('quantity', 1))
+        
+        if quantity < 1:
+            raise ValueError("Quantity must be at least 1kg")
+            
+        if quantity > product.stock_quantity:
+            return JsonResponse({
+                'error': f'Only {product.stock_quantity}kg available'
+            }, status=400)
 
-    paginator = Paginator(products, 9)  # 9 per page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+        # Create order with Pending status
+        order = Order.objects.create(
+            buyer=request.user,
+            product=product,
+            quantity=quantity,
+            total_price=quantity * product.price_per_kg,
+            status='Pending'  # Changed to Pending
+        )
+        
+        product.stock_quantity -= quantity
+        product.save()
 
-    return render(request, 'core/browse_products.html', {'products': page_obj})
+        return JsonResponse({
+            'success': True,
+            'total_price': float(order.total_price),
+            'new_stock': product.stock_quantity
+        })
+        
+    except ValueError as e:
+        return JsonResponse({'error': str(e)}, status=400)
+
+## submit order ##
+@login_required
+@require_POST
+def submit_order(request):
+    order_ids = request.POST.get('order_ids', '')
+    if not order_ids:
+        return JsonResponse({'message': 'No orders to submit.'}, status=400)
+    
+    order_ids = order_ids.split(',')
+    orders = Order.objects.filter(id__in=order_ids, buyer=request.user, status='Pending')
+
+    if not orders.exists():
+        return JsonResponse({'message': 'No pending orders found.'}, status=400)
+
+    for order in orders:
+        order.status = 'Completed'
+        order.save()
+
+    return JsonResponse({'message': 'Order submitted successfully'}, status=200)
+
+# Order history view (for the buyer)
+@login_required
+def order_history(request):
+    orders = Order.objects.filter(buyer=request.user).select_related('product').order_by('-created_at')
+    context = {
+        'orders': orders
+    }
+    return render(request, 'core/order_history.html', context)

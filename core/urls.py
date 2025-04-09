@@ -21,8 +21,11 @@ urlpatterns = [
     path('dashboard/farm/<int:farm_id>/edit/', views.update_farm, name='update_farm'),
     path('dashboard/farm/<int:farm_id>/delete/', views.delete_farm, name='delete_farm'),
     path('dashboard/orders/', views.orders, name='orders'),
+    path('dashboard/orders/<int:order_id>/update/', views.update_order_status, name='update_order_status'),
     
-    
-    # ✅ Consumer-specific routes
+    # Buyer-specific routes
     path('dashboard/browse-products/', views.browse_products, name='browse_products'),
+    path('dashboard/order/<int:product_id>/', views.order_product, name='order_product'),
+    path('dashboard/submit-order/', views.submit_order, name='submit_order'),
+    path('dashboard/order-history/', views.order_history, name='order_history'),
 ]

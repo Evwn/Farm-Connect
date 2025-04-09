@@ -1,45 +1,379 @@
-<!-- orders.html -->
-{% extends 'core/dashboard_base.html' %} {% block content %}
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+{% block content %}
 <div class="dashboard-header">
-  <h1>Orders <i class="fas fa-clipboard-list"></i></h1>
+  <h1>Order Management <i class="fas fa-clipboard-check"></i></h1>
 </div>
 
 <div class="dashboard-grid">
   <div class="dashboard-card">
     <div class="order-filters mb-4">
-      <div class="btn-group">
-        <button class="btn btn-outline-success active">All (8)</button>
-        <button class="btn btn-outline-success">Pending (3)</button>
-        <button class="btn btn-outline-success">Completed (5)</button>
+      <div class="btn-group scroll-hidden">
+        <a href="?status=all" class="filter-btn {% if status_filter == 'all' %}active{% endif %}">
+          All • {{ status_counts.all }}
+        </a>
+        <a href="?status=pending" class="filter-btn {% if status_filter == 'pending' %}active{% endif %}">
+          Pending • {{ status_counts.pending }}
+        </a>
+        <a href="?status=processing" class="filter-btn {% if status_filter == 'processing' %}active{% endif %}">
+          Processing • {{ status_counts.processing }}
+        </a>
+        <a href="?status=shipped" class="filter-btn {% if status_filter == 'shipped' %}active{% endif %}">
+          Shipped • {{ status_counts.shipped }}
+        </a>
+        <a href="?status=completed" class="filter-btn {% if status_filter == 'completed' %}active{% endif %}">
+          Completed • {{ status_counts.completed }}
+        </a>
+        <a href="?status=cancelled" class="filter-btn {% if status_filter == 'cancelled' %}active{% endif %}">
+          Cancelled • {{ status_counts.cancelled }}
+        </a>
       </div>
     </div>
 
-    <div class="order-list">
-      <div class="order-item hover-effect">
+    <div class="order-list scroll-hidden">
+      {% for order in orders %}
+      <div class="order-item">
         <div class="order-header">
-          <h5>Order #12345</h5>
-          <span class="badge bg-warning">Pending</span>
+          <div class="order-meta">
+            <span class="order-id">#{{ order.id }}</span>
+            <span class="order-date">{{ order.created_at|date:"M d, Y • h:i A" }}</span>
+          </div>
+          <span class="status-badge status-{{ order.status|lower }}">
+            <i class="status-icon"></i>{{ order.status }}
+          </span>
         </div>
-        <div class="order-details">
-          <div class="detail">
-            <i class="fas fa-user"></i>
-            <span>John Doe</span>
+        
+        <div class="order-body">
+          <div class="product-info">
+            <div class="product-image" style="background-image: url('{% if order.product.image %}{{ order.product.image.url }}{% else %}{% static 'images/default-product.png' %}{% endif %}')"></div>
+            <div class="product-details">
+              <h4>{{ order.product.name }}</h4>
+              <div class="product-meta">
+                <span class="quantity">{{ order.quantity }}kg</span>
+                <span class="price">${{ order.product.price_per_kg }}/kg</span>
+              </div>
+            </div>
           </div>
-          <div class="detail">
-            <i class="fas fa-box"></i>
-            <span>500kg Organic Wheat</span>
-          </div>
-          <div class="detail">
-            <i class="fas fa-calendar"></i>
-            <span>Delivery by: 25 Dec 2023</span>
+          
+          <div class="customer-info">
+            <div class="customer-avatar">
+              <i class="fas fa-user"></i>
+            </div>
+            <div class="customer-details">
+              <span class="customer-name">{{ order.buyer.username }}</span>
+              <span class="customer-email">{{ order.buyer.email }}</span>
+            </div>
           </div>
         </div>
-        <div class="order-actions">
-          <button class="btn btn-success btn-sm">Mark as Shipped</button>
+
+        <div class="order-footer">
+          <form method="post" action="{% url 'update_order_status' order.id %}">
+            {% csrf_token %}
+            <div class="status-control">
+              <div class="select-wrapper">
+                <select name="status" class="status-select">
+                  {% for value, label in order.STATUS_CHOICES %}
+                  <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
+                  {% endfor %}
+                </select>
+                <i class="fas fa-chevron-down"></i>
+              </div>
+              <button type="submit" class="status-update-btn">
+                <i class="fas fa-sync"></i> Update Status
+              </button>
+            </div>
+          </form>
         </div>
       </div>
-      <!-- Add more order items -->
+      {% empty %}
+      <div class="empty-state">
+        <div class="empty-illustration">
+          <i class="fas fa-shipping-fast"></i>
+        </div>
+        <h3>No Active Orders</h3>
+        <p>Your orders will appear here once customers start purchasing</p>
+      </div>
+      {% endfor %}
     </div>
   </div>
 </div>
+
+<style>
+  /* Base Styles */
+  .dashboard-header {
+    background: linear-gradient(135deg, #2e7d32 0%, #81c784 100%);
+    color: white;
+    padding: 2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+  }
+
+  .order-filters {
+    padding: 1rem 0;
+    border-bottom: 2px solid #f0f0f0;
+  }
+
+  .filter-btn {
+    padding: 0.8rem 1.5rem;
+    border: none;
+    background: #f8f9fa;
+    color: #666;
+    border-radius: 30px;
+    margin: 0 0.5rem;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+  }
+
+  .filter-btn.active {
+    background: #2e7d32;
+    color: white;
+    box-shadow: 0 4px 15px rgba(46,125,50,0.3);
+  }
+
+  .filter-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+  }
+
+  /* Order Item Styling */
+  .order-item {
+    background: white;
+    border-radius: 15px;
+    padding: 2rem;
+    margin-bottom: 1.5rem;
+    transition: transform 0.3s ease;
+    border: 1px solid #f0f0f0;
+  }
+
+  .order-item:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+  }
+
+  .order-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1.5rem;
+    padding-bottom: 1rem;
+    border-bottom: 2px solid #f8f9fa;
+  }
+
+  .order-meta {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .order-id {
+    font-weight: 700;
+    color: #2d3436;
+    font-size: 1.1rem;
+  }
+
+  .order-date {
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  /* Status Badges */
+  .status-badge {
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-icon {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: block;
+  }
+
+  .status-pending { background: #fff3cd; color: #856404; }
+  .status-pending .status-icon { background: #856404; }
+
+  .status-processing { background: #cfe2ff; color: #084298; }
+  .status-processing .status-icon { background: #084298; }
+
+  .status-shipped { background: #cff4fc; color: #087990; }
+  .status-shipped .status-icon { background: #087990; }
+
+  .status-completed { background: #d1e7dd; color: #0f5132; }
+  .status-completed .status-icon { background: #0f5132; }
+
+  .status-cancelled { background: #f8d7da; color: #842029; }
+  .status-cancelled .status-icon { background: #842029; }
+
+  /* Order Body */
+  .order-body {
+    display: grid;
+    grid-template-columns: 2fr 1fr;
+    gap: 2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .product-info {
+    display: flex;
+    align-items: center;
+    gap: 1.5rem;
+  }
+
+  .product-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 12px;
+    background-size: cover;
+    background-position: center;
+  }
+
+  .product-details h4 {
+    margin: 0 0 0.5rem;
+    color: #2d3436;
+    font-size: 1.2rem;
+  }
+
+  .product-meta {
+    display: flex;
+    gap: 1rem;
+    color: #666;
+  }
+
+  .customer-info {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 12px;
+  }
+
+  .customer-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: #2e7d32;
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .customer-details {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .customer-name {
+    font-weight: 600;
+    color: #2d3436;
+  }
+
+  .customer-email {
+    font-size: 0.9rem;
+    color: #666;
+  }
+
+  /* Status Control */
+  .status-control {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .select-wrapper {
+    position: relative;
+    flex: 1;
+  }
+
+  .status-select {
+    width: 100%;
+    padding: 0.8rem 1.2rem;
+    border: 2px solid #e0e0e0;
+    border-radius: 12px;
+    appearance: none;
+    background: white;
+    font-size: 1rem;
+  }
+
+  .select-wrapper i {
+    position: absolute;
+    right: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    pointer-events: none;
+  }
+
+  .status-update-btn {
+    padding: 0.8rem 1.5rem;
+    background: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .status-update-btn:hover {
+    background: #1b5e20;
+    transform: translateY(-2px);
+  }
+
+  /* Empty State */
+  .empty-state {
+    text-align: center;
+    padding: 4rem 0;
+  }
+
+  .empty-illustration {
+    font-size: 4rem;
+    color: #81c784;
+    margin-bottom: 1.5rem;
+  }
+
+  .empty-state h3 {
+    color: #2d3436;
+    margin-bottom: 0.5rem;
+  }
+
+  .empty-state p {
+    color: #666;
+  }
+
+  /* Scrollbar Removal */
+  .scroll-hidden {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .scroll-hidden::-webkit-scrollbar {
+    display: none;
+  }
+
+  .order-list {
+    max-height: calc(100vh - 250px);
+    overflow-y: auto;
+  }
+</style>
+
+<script>
+  // Add dynamic status indicator animation
+  document.querySelectorAll('.status-badge').forEach(badge => {
+    const icon = badge.querySelector('.status-icon');
+    badge.addEventListener('mouseenter', () => {
+      icon.style.transform = 'scale(1.2)';
+    });
+    badge.addEventListener('mouseleave', () => {
+      icon.style.transform = 'scale(1)';
+    });
+  });
+</script>
 {% endblock %}

@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import CustomUser, Product, Farm
+from .models import CustomUser, Product, Farm, Order
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
@@ -9,6 +9,7 @@ class CustomUserCreationForm(UserCreationForm):
 
 class ProductForm(forms.ModelForm):
     is_organic = forms.BooleanField(required=False, label="Organic Certified")
+    location = forms.CharField(required=True, widget=forms.TextInput(attrs={'placeholder': 'Enter farm location'}))
 
     class Meta:
         model = Product
@@ -19,12 +20,17 @@ class ProductForm(forms.ModelForm):
             'description',
             'stock_quantity',
             'harvest_date',
+            'location',  # New field
             'is_organic',
-            'image',  # Add the image field to the form
+            'image',
         ]
         widgets = {
             'harvest_date': forms.DateInput(attrs={'type': 'date'}),
         }
+class OrderForm(forms.ModelForm):
+    class Meta:
+        model = Order
+        fields = ['product', 'quantity']
 class FarmForm(forms.ModelForm):
     is_organic_certified = forms.BooleanField(required=False)
     is_fair_trade_certified = forms.BooleanField(required=False)

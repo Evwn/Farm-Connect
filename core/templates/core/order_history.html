@@ -1,0 +1,477 @@
+{% extends 'core/dashboard_base.html' %} {% load static %} {% block content %}
+<!-- Order History Page Header -->
+<div class="dashboard-header">
+  <div class="header-content">
+    <h1 class="dashboard-title">
+      Order History <i class="fas fa-history"></i>
+    </h1>
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item">
+          <a href="{% url 'dashboard' %}">Dashboard</a>
+        </li>
+        <li class="breadcrumb-item active" aria-current="page">
+          Order History
+        </li>
+      </ol>
+    </nav>
+  </div>
+</div>
+
+<!-- Order History Section -->
+<div class="order-history-container">
+  {% if orders %}
+  <div class="order-grid">
+    {% for order in orders %}
+    <div class="order-card">
+      <div class="order-meta">
+        <div class="order-id">
+          <h3>#{{ order.id }}</h3>
+          <span class="order-status {{ order.status|lower }}"
+            >{{ order.status }}</span
+          >
+        </div>
+        <div class="order-dates">
+          <div class="order-date">
+            <i class="fas fa-calendar-alt"></i>
+            {{ order.created_at|date:"M j, Y" }}
+          </div>
+        </div>
+      </div>
+
+      <div class="order-products">
+        <div class="products-header">
+          <h4>{{ order.product.name }}</h4>
+          <span class="total-amount">${{ order.total_price }}</span>
+        </div>
+
+        <div class="product-grid">
+          <div class="product-item">
+            <img
+              src="{% if order.product.image %}{{ order.product.image.url }}{% else %}{% static 'images/default-product.png' %}{% endif %}"
+              alt="{{ order.product.name }}"
+              class="product-image"
+            />
+            <div class="product-info">
+              <div class="product-meta">
+                <span class="quantity">Qty: {{ order.quantity }}kg</span>
+                <span class="price">${{ order.product.price_per_kg }}/kg</span>
+              </div>
+              <div class="vendor-info">
+                <i class="fas fa-user"></i>
+                {{ order.product.farmer.username }}
+              </div>
+              <div class="product-location">
+                <i class="fas fa-map-marker-alt"></i>
+                {{ order.product.location }}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="order-actions">
+        <button
+          class="btn btn-details"
+          data-order-id="{{ order.id }}"
+          onclick="showOrderDetails({{ order.id }})"
+        >
+          <i class="fas fa-file-invoice"></i> Details
+        </button>
+        <a
+          href="{% url 'order_product' order.product.id %}?quantity={{ order.quantity }}"
+          class="btn btn-repeat"
+        >
+          <i class="fas fa-redo"></i> Re-order
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-content">
+      <i class="fas fa-box-open"></i>
+      <h3>No Orders Found</h3>
+      <p>Your order history will appear here once you make purchases</p>
+      <a href="{% url 'browse_products' %}" class="btn btn-primary">
+        <i class="fas fa-shopping-basket"></i> Start Shopping
+      </a>
+    </div>
+  </div>
+  {% endif %}
+</div>
+
+<!-- Order Details Modal -->
+<div
+  class="modal fade"
+  id="orderDetailsModal"
+  tabindex="-1"
+  aria-labelledby="orderDetailsModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-dialog-centered modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="orderDetailsModalLabel">Order Details</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div class="modal-body">
+        <div id="orderDetailsContent"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  
+
+  .order-history-container {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .order-grid {
+    display: grid;
+    gap: 1.5rem;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  }
+
+  .order-card {
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    overflow: hidden;
+    transition: transform 0.2s ease;
+  }
+
+  .order-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 6px 25px rgba(0, 0, 0, 0.1);
+  }
+
+  .order-meta {
+    padding: 1rem;
+    background: var(--accent-mint);
+    border-bottom: 2px solid var(--secondary-green);
+  }
+
+  .order-id {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .order-id h3 {
+    margin: 0;
+    color: var(--primary-green);
+    font-size: 1.2rem;
+  }
+
+  .order-status {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 600;
+  }
+
+  .order-status.processing {
+    background: #fff3cd;
+    color: #856404;
+  }
+  .order-status.completed {
+    background: #d4edda;
+    color: #155724;
+  }
+  .order-status.cancelled {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .order-dates {
+    display: flex;
+    gap: 1rem;
+    color: var(--dark-black);
+    font-size: 0.8rem;
+  }
+
+  .order-products {
+    padding: 1rem;
+  }
+
+  .products-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .products-header h4 {
+    margin: 0;
+    color: var(--primary-green);
+    font-size: 1rem;
+    font-weight: 600;
+  }
+
+  .total-amount {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--secondary-green);
+  }
+
+  .product-item {
+    display: flex;
+    gap: 1rem;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    margin-top: 0.5rem;
+  }
+
+  .product-image {
+    width: 80px;
+    height: 80px;
+    border-radius: 8px;
+    object-fit: cover;
+  }
+
+  .product-info {
+    flex: 1;
+  }
+
+  .product-meta {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .vendor-info {
+    font-size: 0.85rem;
+    color: var(--secondary-green);
+    margin-top: 0.5rem;
+  }
+
+  .product-location {
+    font-size: 0.8rem;
+    color: #666;
+    margin-top: 0.3rem;
+  }
+
+  .order-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1px;
+    border-top: 1px solid #eee;
+    margin-top: 1rem;
+  }
+
+  .btn {
+    padding: 0.75rem;
+    border: none;
+    background: white;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .btn-details {
+    color: var(--primary-green);
+  }
+
+  .btn-details:hover {
+    background: var(--accent-mint);
+  }
+
+  .btn-repeat {
+    color: var(--secondary-green);
+  }
+
+  .btn-repeat:hover {
+    background: #e8f5e9;
+  }
+
+  /* Modal Styles */
+  .modal-content {
+    border-radius: 12px;
+    border: none;
+  }
+
+  .modal-header {
+    background: var(--accent-mint);
+    border-bottom: 2px solid var(--secondary-green);
+    padding: 1.2rem;
+  }
+
+  .modal-title {
+    color: var(--primary-green);
+    font-weight: 700;
+    font-size: 1.3rem;
+  }
+
+  .modal-body {
+    padding: 1.5rem;
+  }
+
+  .order-details-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding: 0.8rem;
+    background: #f8f9fa;
+    border-radius: 8px;
+    font-size: 0.95rem;
+  }
+
+  .detail-label {
+    font-weight: 600;
+    color: var(--primary-green);
+  }
+
+  .detail-value {
+    color: var(--dark-black);
+    text-align: right;
+  }
+
+  .empty-state {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 60vh;
+    text-align: center;
+  }
+
+  .empty-content i {
+    font-size: 4rem;
+    color: var(--secondary-green);
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-primary {
+    background: var(--secondary-green);
+    color: white;
+    padding: 0.8rem 2rem;
+    border-radius: 25px;
+    text-decoration: none;
+    margin-top: 1rem;
+    transition: all 0.2s ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--primary-green);
+    transform: translateY(-2px);
+  }
+  /* Order Status Colors */
+  .order-status.pending {
+    background: #fff3cd; /* Soft yellow */
+    color: #856404; /* Dark yellow */
+  }
+
+  .order-status.processing {
+    background: #cfe2ff; /* Soft blue */
+    color: #084298; /* Dark blue */
+  }
+
+  .order-status.shipped {
+    background: #cff4fc; /* Soft cyan */
+    color: #087990; /* Dark cyan */
+  }
+
+  .order-status.completed {
+    background: #d1e7dd; /* Soft green */
+    color: #0f5132; /* Dark green */
+  }
+
+  .order-status.cancelled {
+    background: #f8d7da; /* Soft red */
+    color: #842029; /* Dark red */
+  }
+</style>
+
+<script>
+  function showOrderDetails(orderId) {
+    const orderCard = document
+      .querySelector(`[data-order-id="${orderId}"]`)
+      .closest(".order-card");
+    const orderDetails = {
+      productName: orderCard.querySelector("h4").textContent,
+      farmer: orderCard
+        .querySelector(".vendor-info")
+        .textContent.trim()
+        .replace("Farmer: ", ""),
+      quantity: orderCard
+        .querySelector(".quantity")
+        .textContent.replace("Qty: ", ""),
+      pricePerKg: orderCard.querySelector(".price").textContent,
+      totalPrice: orderCard.querySelector(".total-amount").textContent,
+      orderDate: orderCard.querySelector(".order-date").textContent.trim(),
+      status: orderCard.querySelector(".order-status").textContent,
+      location: orderCard.querySelector(".product-location").textContent,
+      productImage: orderCard.querySelector(".product-image").src,
+    };
+
+    const detailsContent = `
+      <div class="text-center mb-4">
+        <img src="${orderDetails.productImage}" 
+             alt="${orderDetails.productName}" 
+             class="img-fluid rounded shadow-sm" 
+             style="max-height: 200px">
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Product Name:</span>
+        <span class="detail-value">${orderDetails.productName}</span>
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Farmer:</span>
+        <span class="detail-value">${orderDetails.farmer}</span>
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Quantity:</span>
+        <span class="detail-value">${orderDetails.quantity}</span>
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Price per kg:</span>
+        <span class="detail-value">${orderDetails.pricePerKg}</span>
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Total Price:</span>
+        <span class="detail-value">${orderDetails.totalPrice}</span>
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Order Date:</span>
+        <span class="detail-value">${orderDetails.orderDate}</span>
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Status:</span>
+        <span class="detail-value">${orderDetails.status}</span>
+      </div>
+      <div class="order-details-item">
+        <span class="detail-label">Location:</span>
+        <span class="detail-value">${orderDetails.location}</span>
+      </div>
+    `;
+
+    document.getElementById("orderDetailsContent").innerHTML = detailsContent;
+    const modal = new bootstrap.Modal(
+      document.getElementById("orderDetailsModal")
+    );
+    modal.show();
+  }
+</script>
+{% endblock %}
