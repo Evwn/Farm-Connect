@@ -231,242 +231,262 @@ h6 {
 /* Auth Forms */
 /* Auth Forms Styling */
 :root {
-    --primary-green: #2a5c45;
-    --secondary-green: #3d8b6d;
-    --accent-mint: #e8f5e9;
-    --dark-black: #1a1a1a;
-    --gold-wheat: #ffd700;
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  }
+  --primary-green: #2a5c45;
+  --secondary-green: #3d8b6d;
+  --accent-mint: #e8f5e9;
+  --dark-black: #1a1a1a;
+  --gold-wheat: #ffd700;
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Auth Container */
+.auth-container {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4rem 2rem;
   
-  /* Auth Container */
+}
+
+/* Auth Card */
+.auth-card {
+  background: white;
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+  padding: 3.5rem;
+  border-radius: 20px;
+  box-shadow: 0 15px 40px rgba(42, 92, 69, 0.15);
+  transform: translateY(0);
+  transition: var(--transition);
+  min-width: 400px;
+}
+
+.auth-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 20px 50px rgba(42, 92, 69, 0.2);
+}
+
+/* Auth Header */
+.auth-header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.auth-header h2 {
+  font-size: 2.2rem;
+  color: var(--primary-green);
+  margin-bottom: 1rem;
+}
+
+.auth-header p {
+  font-size: 1.1rem;
+  color: var(--dark-black);
+  opacity: 0.8;
+}
+
+/* Form Elements */
+.auth-form {
+  position: relative;
+}
+
+.form-group {
+  margin-bottom: 2rem;
+  position: relative;
+}
+
+.icon-input {
+  position: relative;
+}
+
+.input-icon {
+  position: absolute;
+  left: 1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--secondary-green);
+  font-size: 1.2rem;
+  transition: var(--transition);
+  z-index: 2;
+}
+
+.form-control {
+  width: 100%;
+  padding: 1rem 1.5rem 1rem 3.5rem;
+  height: 52px;
+  border: 2px solid var(--accent-mint);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  color: var(--dark-black);
+  background: white;
+  transition: var(--transition);
+}
+
+.form-control:focus {
+  border-color: var(--secondary-green);
+  box-shadow: 0 0 0 3px rgba(61, 139, 109, 0.2);
+  outline: none;
+}
+
+.form-control:focus + .input-icon {
+  color: var(--primary-green);
+  transform: translateY(-50%) scale(1.2);
+}
+
+/* Role Select Dropdown */
+.role-select {
+  width: 100%;
+  padding: 1rem 1.5rem;
+  border: 2px solid var(--accent-mint);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  color: var(--dark-black);
+  background: white;
+  appearance: none;
+  transition: var(--transition);
+}
+
+.role-select:focus {
+  border-color: var(--secondary-green);
+  box-shadow: 0 0 0 3px rgba(61, 139, 109, 0.2);
+}
+
+/* Auth Button */
+.btn-auth {
+  width: 100%;
+  padding: 1.2rem 2rem;
+  background: var(--secondary-green);
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  overflow: hidden;
+  position: relative;
+  transition: var(--transition);
+  cursor: pointer;
+}
+
+.btn-auth:hover {
+  background: var(--primary-green);
+  transform: translateY(-2px);
+}
+
+.btn-auth .btn-text {
+  display: inline-block;
+  transition: transform 0.3s ease;
+}
+
+.btn-auth .btn-icon {
+  position: absolute;
+  right: 1.5rem;
+  top: 50%;
+  transform: translateY(-50%);
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.btn-auth:hover .btn-text {
+  transform: translateX(-15px);
+}
+
+.btn-auth:hover .btn-icon {
+  opacity: 1;
+  right: 2rem;
+}
+
+/* Links and Additional Options */
+.auth-links {
+  text-align: center;
+  margin-top: 2rem;
+}
+
+.auth-links a {
+  color: var(--secondary-green);
+  text-decoration: none;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.auth-links a:hover {
+  color: var(--primary-green);
+  text-decoration: underline;
+}
+
+/* Error Messages */
+.errorlist {
+  list-style: none;
+  padding: 0;
+  margin: 0.5rem 0 0 0;
+  color: #dc3545;
+  font-size: 0.95rem;
+}
+
+.errorlist li {
+  padding: 0.3rem 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
   .auth-container {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 4rem 2rem;
-    background: url('https://www.transparenttextures.com/patterns/concrete-wall.png') var(--accent-mint);
+    padding: 2rem 1rem;
   }
-  
-  /* Auth Card */
+
   .auth-card {
-    background: white;
-    width: 100%;
-    max-width: 500px;
-    margin: 0 auto;
-    padding: 3.5rem;
-    border-radius: 20px;
-    box-shadow: 0 15px 40px rgba(42, 92, 69, 0.15);
-    transform: translateY(0);
-    transition: var(--transition);
-    min-width: 400px;
+    min-width: unset;
+    max-width: 90%;
+    padding: 2.5rem;
   }
-  
-  .auth-card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 20px 50px rgba(42, 92, 69, 0.2);
-  }
-  
-  /* Auth Header */
-  .auth-header {
-    text-align: center;
-    margin-bottom: 3rem;
-  }
-  
+
   .auth-header h2 {
-    font-size: 2.2rem;
-    color: var(--primary-green);
-    margin-bottom: 1rem;
+    font-size: 2rem;
   }
-  
-  .auth-header p {
-    font-size: 1.1rem;
-    color: var(--dark-black);
-    opacity: 0.8;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 2rem 1.5rem;
+    border-radius: 15px;
   }
-  
-  /* Form Elements */
-  .auth-form {
-    position: relative;
-  }
-  
-  .form-group {
-    margin-bottom: 2rem;
-    position: relative;
-  }
-  
-  .icon-input {
-    position: relative;
-  }
-  
-  .input-icon {
-    position: absolute;
-    left: 1.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--secondary-green);
-    font-size: 1.2rem;
-    transition: var(--transition);
-    z-index: 2;
-  }
-  
+
   .form-control {
-    width: 100%;
-    padding: 1rem 1.5rem 1rem 3.5rem;
-    height: 52px;
-    border: 2px solid var(--accent-mint);
-    border-radius: 12px;
-    font-size: 1.1rem;
-    color: var(--dark-black);
-    background: white;
-    transition: var(--transition);
+    height: 48px;
+    font-size: 1rem;
+    padding-left: 3rem;
   }
-  
-  .form-control:focus {
-    border-color: var(--secondary-green);
-    box-shadow: 0 0 0 3px rgba(61, 139, 109, 0.2);
-    outline: none;
+
+  .input-icon {
+    left: 1.2rem;
+    font-size: 1rem;
   }
-  
-  .form-control:focus + .input-icon {
-    color: var(--primary-green);
-    transform: translateY(-50%) scale(1.2);
-  }
-  
-  /* Role Select Dropdown */
-  .role-select {
-    width: 100%;
-    padding: 1rem 1.5rem;
-    border: 2px solid var(--accent-mint);
-    border-radius: 12px;
-    font-size: 1.1rem;
-    color: var(--dark-black);
-    background: white;
-    appearance: none;
-    transition: var(--transition);
-  }
-  
-  .role-select:focus {
-    border-color: var(--secondary-green);
-    box-shadow: 0 0 0 3px rgba(61, 139, 109, 0.2);
-  }
-  
-  /* Auth Button */
+
   .btn-auth {
-    width: 100%;
-    padding: 1.2rem 2rem;
-    background: var(--secondary-green);
-    color: white;
-    border: none;
-    border-radius: 12px;
-    font-size: 1.1rem;
-    font-weight: 600;
-    overflow: hidden;
-    position: relative;
-    transition: var(--transition);
-    cursor: pointer;
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
   }
-  
-  .btn-auth:hover {
-    background: var(--primary-green);
-    transform: translateY(-2px);
+
+  .auth-header h2 {
+    font-size: 1.8rem;
   }
-  
-  .btn-auth .btn-text {
-    display: inline-block;
-    transition: transform 0.3s ease;
-  }
-  
-  .btn-auth .btn-icon {
-    position: absolute;
-    right: 1.5rem;
-    top: 50%;
-    transform: translateY(-50%);
-    opacity: 0;
-    transition: var(--transition);
-  }
-  
-  .btn-auth:hover .btn-text {
-    transform: translateX(-15px);
-  }
-  
-  .btn-auth:hover .btn-icon {
-    opacity: 1;
-    right: 2rem;
-  }
-  
-  /* Links and Additional Options */
-  .auth-links {
-    text-align: center;
-    margin-top: 2rem;
-  }
-  
-  .auth-links a {
-    color: var(--secondary-green);
-    text-decoration: none;
-    font-weight: 500;
-    transition: var(--transition);
-  }
-  
-  .auth-links a:hover {
-    color: var(--primary-green);
-    text-decoration: underline;
-  }
-  
-  /* Error Messages */
-  .errorlist {
-    list-style: none;
-    padding: 0;
-    margin: 0.5rem 0 0 0;
-    color: #dc3545;
-    font-size: 0.95rem;
-  }
-  
-  .errorlist li {
-    padding: 0.3rem 0;
-  }
-  
-  /* Responsive Design */
-  @media (max-width: 768px) {
-    .auth-container {
-      padding: 2rem 1rem;
-    }
-    
-    .auth-card {
-      min-width: unset;
-      max-width: 90%;
-      padding: 2.5rem;
-    }
-    
-    .auth-header h2 {
-      font-size: 2rem;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .auth-card {
-      padding: 2rem 1.5rem;
-      border-radius: 15px;
-    }
-    
-    .form-control {
-      height: 48px;
-      font-size: 1rem;
-      padding-left: 3rem;
-    }
-    
-    .input-icon {
-      left: 1.2rem;
-      font-size: 1rem;
-    }
-    
-    .btn-auth {
-      padding: 1rem 1.5rem;
-      font-size: 1rem;
-    }
-    
-    .auth-header h2 {
-      font-size: 1.8rem;
-    }
-  }
+}
+
+.swal2-popup {
+  font-family: inherit;
+  border-radius: 15px !important;
+}
+
+.swal2-title {
+  font-size: 1.1rem !important;
+  color: var(--dark-black) !important;
+}
+
+.swal2-confirm {
+  background: var(--secondary-green) !important;
+  transition: var(--transition) !important;
+}
+
+.swal2-confirm:hover {
+  background: var(--primary-green) !important;
+  transform: translateY(-1px);
+}

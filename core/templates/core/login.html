@@ -1,4 +1,3 @@
-<!-- login.html -->
 {% extends 'core/base.html' %} {% block content %}
 <div class="auth-container">
   <div class="auth-card">
@@ -45,4 +44,26 @@
     </form>
   </div>
 </div>
-{% endblock %}
+
+{% if messages %}
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+      {% for message in messages %}
+          Swal.fire({
+              icon: "{{ message.tags }}",
+              title: "{{ message|safe }}",
+              {% if message.tags == 'success' %}
+                  showConfirmButton: false,
+                  timer: 3000,
+                  position: 'top-end',
+                  toast: true,
+                  background: 'var(--accent-mint)',
+              {% else %}
+                  confirmButtonColor: 'var(--primary-green)',
+                  confirmButtonText: 'Try Again',
+              {% endif %}
+          });
+      {% endfor %}
+  });
+</script>
+{% endif %} {% endblock %}

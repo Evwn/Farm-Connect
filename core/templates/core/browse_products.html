@@ -13,8 +13,37 @@
   </nav>
 </div>
 
+<!-- Search and Filter Controls -->
+<div class="product-filters mb-4">
+  <div class="row g-3">
+    <div class="col-md-6">
+      <div class="search-container">
+        <i class="fas fa-search search-icon"></i>
+        <input
+          type="text"
+          class="form-control search-input"
+          placeholder="Search products..."
+          id="searchInput"
+          aria-label="Search products"
+        />
+      </div>
+    </div>
+    <div class="col-md-6">
+      <select class="form-select category-select" id="categoryFilter">
+        <option value="all">All Categories</option>
+        {% for value, label in product_categories %}
+        <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+  </div>
+</div>
+
 <div class="dashboard-grid">
-  <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+  <div
+    class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"
+    id="productContainer"
+  >
     {% for product in products %}
     <div
       class="col product-card-container"
@@ -107,6 +136,49 @@
 </div>
 
 <style>
+  /* Filter Styles */
+  .product-filters {
+    background: var(--accent-mint);
+    padding: 1.5rem;
+    border-radius: 12px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+
+  .search-container {
+    position: relative;
+  }
+
+  .search-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--secondary-green);
+    z-index: 2;
+  }
+
+  .search-input {
+    padding-left: 3rem;
+    border: 2px solid var(--accent-mint);
+    transition: var(--transition);
+  }
+
+  .search-input:focus {
+    border-color: var(--secondary-green);
+    box-shadow: none;
+  }
+
+  .category-select {
+    border: 2px solid var(--accent-mint);
+    transition: var(--transition);
+  }
+
+  .category-select:focus {
+    border-color: var(--secondary-green);
+    box-shadow: none;
+  }
+
+  /* Existing Product Styles */
   .seller-info {
     border-bottom: 1px solid #eee;
     padding-bottom: 0.75rem;
@@ -144,7 +216,45 @@
 
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
+  // Filter/Search Functionality
   document.addEventListener("DOMContentLoaded", function () {
+    const searchInput = document.getElementById("searchInput");
+    const categoryFilter = document.getElementById("categoryFilter");
+    const productCards = document.querySelectorAll(".product-card-container");
+
+    function filterProducts() {
+      const searchTerm = searchInput.value.toLowerCase();
+      const selectedCategory = categoryFilter.value;
+
+      // Update URL parameters
+      const url = new URL(window.location);
+      url.searchParams.set("search", searchTerm);
+      url.searchParams.set("category", selectedCategory);
+      window.history.pushState({}, "", url);
+
+      productCards.forEach((card) => {
+        const productName = card.dataset.name.toLowerCase();
+        const productCategory = card.dataset.category;
+
+        const nameMatch = productName.includes(searchTerm);
+        const categoryMatch =
+          selectedCategory === "all" || productCategory === selectedCategory;
+
+        card.style.display = nameMatch && categoryMatch ? "block" : "none";
+      });
+    }
+
+    // Initialize filters from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    searchInput.value = urlParams.get("search") || "";
+    categoryFilter.value = urlParams.get("category") || "all";
+    filterProducts();
+
+    // Event listeners
+    searchInput.addEventListener("input", filterProducts);
+    categoryFilter.addEventListener("change", filterProducts);
+
+    // Order Placement Functionality
     const csrfToken = document.querySelector(
       '[name="csrfmiddlewaretoken"]'
     ).value;
@@ -159,7 +269,6 @@
         const productUrl = this.dataset.productUrl;
         const quantityInput = document.querySelector(`#quantity-${productId}`);
 
-        // Added validation for numeric input
         const quantity = parseInt(quantityInput.value) || 0;
 
         if (quantity < 1 || quantity > productStock) {
@@ -168,7 +277,7 @@
             title: "Invalid Quantity",
             text: `Please enter a valid quantity (1 to ${productStock} kg).`,
           });
-          quantityInput.value = "1"; // Reset to default
+          quantityInput.value = "1";
           return;
         }
 
@@ -189,7 +298,6 @@
               '<i class="fas fa-spinner fa-spin"></i> Processing...';
             button.disabled = true;
 
-            // Added error handling for JSON parsing
             fetch(productUrl, {
               method: "POST",
               headers: {
@@ -198,21 +306,19 @@
               },
               body: JSON.stringify({
                 quantity: quantity,
-                product_id: productId, // Added explicit product ID
+                product_id: productId,
               }),
             })
               .then(async (response) => {
                 const data = await response.json();
-                if (!response.ok) {
+                if (!response.ok)
                   throw new Error(data.error || "Network error");
-                }
                 return data;
               })
               .then((data) => {
                 if (data.success) {
-                  // Update all relevant UI elements
                   quantityInput.max = data.new_stock;
-                  quantityInput.value = "1"; // Reset input after success
+                  quantityInput.value = "1";
                   productCard.querySelector(".stock-display").textContent =
                     data.new_stock;
 

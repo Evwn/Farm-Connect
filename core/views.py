@@ -1,10 +1,10 @@
 from decimal import Decimal  # Add this at the top
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login
+from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .forms import CustomUserCreationForm, ProductForm, FarmForm
-from django.db.models import Q  # Import Q for complex queries
+from django.db.models import Q, Sum  # Import Q and Sum for complex queries and aggregations
 from django.core.paginator import Paginator  # Import Paginator
 from django.http import JsonResponse  # Import JsonResponse for JSON responses
 import json  # Import json for handling JSON data
@@ -19,19 +19,74 @@ def about(request):
     return render(request, 'core/about.html')
 
 def register(request):
-    if request.method == 'POST':
+    # Handle registration
+    if request.method == 'POST' and 'email' in request.POST:  # Registration form submit
         form = CustomUserCreationForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
+            messages.success(request, '🎉 Registration successful! Welcome to FarmConnect')
             return redirect('dashboard')
+        else:
+            errors = [f"{field.replace('_', ' ').title()}: {error}" 
+                     for field, errors in form.errors.items() 
+                     for error in errors]
+            messages.error(request, '<br>• '.join([''] + errors)[4:])
+    
+    # Handle login
+    elif request.method == 'POST' and 'password' in request.POST:  # Login form submit
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        
+        if user is not None:
+            login(request, user)
+            messages.success(request, '👋 Welcome back! Redirecting to dashboard...')
+            return redirect('dashboard')
+        else:
+            messages.error(request, '''
+                ⚠️ Login Failed!<br>
+                Please check:
+                <ul class="text-start">
+                    <li>Correct username</li>
+                    <li>Valid password</li>
+                    <li>Caps Lock status</li>
+                </ul>
+            ''')
+    
     else:
+        messages.get_messages(request).used = True  # Clear existing messages
         form = CustomUserCreationForm()
+
     return render(request, 'core/register.html', {'form': form})
 
-@login_required
+
 def dashboard(request):
-    return render(request, 'core/dashboard.html')
+    context = {}
+
+    if request.user.role == 'farmer':
+        # For farmers: Show stats for their products and orders
+        total_harvested = Product.objects.filter(farmer=request.user).aggregate(total_stock=Sum('stock_quantity'))['total_stock'] or 0
+        total_sold = Order.objects.filter(product__farmer=request.user, status='Completed').aggregate(total_sales=Sum('quantity'))['total_sales'] or 0
+        current_harvest = total_harvested - total_sold  # Remaining stock available for sale
+
+        # Add data to context for the farmer's dashboard
+        context['current_harvest'] = current_harvest
+        context['total_sold'] = total_sold
+        context['total_orders'] = Order.objects.filter(product__farmer=request.user).count()
+
+    elif request.user.role == 'buyer':
+        # For buyers: Show stats for their orders
+        total_orders = Order.objects.filter(buyer=request.user).count()
+        pending_orders = Order.objects.filter(buyer=request.user, status='Pending').count()
+        completed_orders = Order.objects.filter(buyer=request.user, status='Completed').count()
+
+        # Add data to context for the buyer's dashboard
+        context['total_orders'] = total_orders
+        context['pending_orders'] = pending_orders
+        context['completed_orders'] = completed_orders
+
+    return render(request, 'core/dashboard.html', context)
 
 
 ### Add Products Feature ###
