@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
 from pathlib import Path
+import os
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -81,6 +86,7 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 LOGIN_REDIRECT_URL = 'dashboard'
 LOGOUT_REDIRECT_URL = 'login'
+LOGIN_URL = 'login'
 
 WSGI_APPLICATION = 'farmconnect.wsgi.application'
 
@@ -136,3 +142,18 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+# Payment Gateway Settings
+PAYPAL_MODE = 'sandbox'  # Change to 'live' for production
+PAYPAL_CLIENT_ID = os.environ.get('PAYPAL_CLIENT_ID', '')
+PAYPAL_CLIENT_SECRET = os.environ.get('PAYPAL_CLIENT_SECRET', '')
+
+PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
+PAYSTACK_PUBLIC_KEY = os.environ.get('PAYSTACK_PUBLIC_KEY', '')
+
+SKRILL_MERCHANT_ID = os.environ.get('SKRILL_MERCHANT_ID', '')
+SKRILL_MERCHANT_EMAIL = os.environ.get('SKRILL_MERCHANT_EMAIL', '')
+SKRILL_SECRET_WORD = os.environ.get('SKRILL_SECRET_WORD', '')
+
+# Site URL for payment callbacks
+SITE_URL = 'http://localhost:8000'

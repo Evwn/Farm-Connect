@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Skrill Payment - FarmConnect{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="text-center">Redirecting to Skrill Payment...</h3>
+                </div>
+                <div class="card-body text-center">
+                    <p>Please wait while we redirect you to Skrill's secure payment page.</p>
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form id="skrillForm" action="{{ payment_url }}" method="POST">
+    {% for key, value in payment_data.items %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+</form>
+
+<script>
+    // Auto-submit the form when the page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        document.getElementById('skrillForm').submit();
+    });
+</script>
+{% endblock %} 

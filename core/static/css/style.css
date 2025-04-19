@@ -1,0 +1,34 @@
+/* Payment Status Badges */
+.payment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  margin-left: 0.5rem;
+}
+
+.payment-status-badge i {
+  margin-right: 0.25rem;
+}
+
+.payment-status-pending {
+  background-color: #ffc107;
+  color: #212529;
+}
+
+.payment-status-in escrow {
+  background-color: #17a2b8;
+  color: #fff;
+}
+
+.payment-status-released {
+  background-color: #28a745;
+  color: #fff;
+}
+
+.payment-status-refunded {
+  background-color: #dc3545;
+  color: #fff;
+} 

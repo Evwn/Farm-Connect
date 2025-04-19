@@ -1,4 +1,16 @@
 {% extends 'core/dashboard_base.html' %} {% load static %} {% block content %}
+<!-- Include the price prediction component -->
+{% include 'core/price_prediction.html' %}
+
+<!-- Add Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+
+<!-- Add CSRF token for AJAX requests -->
+{% csrf_token %}
+
+<!-- Add SweetAlert2 library -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
 <div class="dashboard-header">
   <h1 class="dashboard-title">
     Browse Products <i class="fas fa-seedling"></i>
@@ -81,6 +93,35 @@
           <div class="product-header">
             <h3 class="product-title">{{ product.name }}</h3>
             <div class="product-price">${{ product.price_per_kg }}/kg</div>
+          </div>
+
+          <!-- Price Prediction Section -->
+          <div class="price-prediction-section mb-3">
+            <div class="price-prediction-container">
+              <div class="current-price">
+                <strong>Current: ${{ product.price_per_kg }}/kg</strong>
+              </div>
+              <div class="suggested-price" id="suggestedPrice{{ product.id }}">
+                <!-- Suggested price will be inserted here by JavaScript -->
+              </div>
+              <div class="prediction-box">
+                <div class="prediction-header">
+                  <small class="text-muted">Next Harvest Prediction</small>
+                </div>
+                <div class="prediction-graph">
+                  <canvas id="priceChart{{ product.id }}" width="150" height="40"></canvas>
+                </div>
+                <div class="prediction-change" id="priceChange{{ product.id }}">
+                  <!-- Price change will be inserted here by JavaScript -->
+                </div>
+                <div class="prediction-judgment" id="priceJudgment{{ product.id }}">
+                  <!-- Judgment will be inserted here by JavaScript -->
+                </div>
+              </div>
+            </div>
+            <div id="insightsContainer{{ product.id }}" class="insights-container">
+              <!-- Insights will be inserted here by JavaScript -->
+            </div>
           </div>
 
           <!-- Product Meta -->
@@ -178,6 +219,130 @@
     box-shadow: none;
   }
 
+  /* Price Prediction Styles */
+  .price-prediction-section {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #f8f9fa;
+  }
+
+  .price-prediction-container {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .current-price {
+    margin-bottom: 5px;
+  }
+
+  .suggested-price {
+    margin-bottom: 10px;
+    font-size: 0.85rem;
+    color: #0d6efd;
+    font-weight: 500;
+  }
+
+  .prediction-box {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 8px;
+    background-color: #f8f9fa;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    position: relative;
+    margin-top: 5px;
+  }
+
+  .prediction-header {
+    text-align: center;
+    margin-bottom: 5px;
+    font-size: 0.8rem;
+    position: absolute;
+    top: -20px;
+    left: 0;
+    right: 0;
+  }
+
+  .prediction-graph {
+    width: 150px;
+    height: 40px;
+    margin-bottom: 5px;
+    flex-shrink: 0;
+  }
+
+  .prediction-change {
+    font-size: 0.9rem;
+    font-weight: 500;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-align: center;
+    margin-bottom: 5px;
+  }
+
+  .prediction-judgment {
+    font-size: 0.8rem;
+    text-align: center;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background-color: rgba(0, 0, 0, 0.05);
+  }
+
+  .prediction-change.positive {
+    color: #28a745;
+    background-color: rgba(40, 167, 69, 0.1);
+  }
+
+  .prediction-change.negative {
+    color: #dc3545;
+    background-color: rgba(220, 53, 69, 0.1);
+  }
+
+  .insights-container {
+    margin-top: 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    width: 100%;
+    min-height: 120px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  .insights-title {
+    font-size: 0.8rem;
+    font-weight: 600;
+    margin-bottom: 5px;
+    color: #495057;
+    border-bottom: 1px solid #e0e0e0;
+    padding-bottom: 3px;
+  }
+
+  .insights-list {
+    font-size: 0.75rem;
+    margin: 0;
+    padding-left: 15px;
+  }
+
+  .insights-list li {
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+
+  .insights-list li:last-child {
+    margin-bottom: 0;
+  }
+
+  .insight-action {
+    font-weight: 500;
+    color: #0d6efd;
+  }
+
   /* Existing Product Styles */
   .seller-info {
     border-bottom: 1px solid #eee;
@@ -199,152 +364,479 @@
   }
   .product-meta {
     display: flex;
-    gap: 1rem;
-    font-size: 0.9rem;
-    color: #666;
-    margin: 1rem 0;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    font-size: 0.85rem;
+    color: #6c757d;
   }
   .meta-item {
     display: flex;
     align-items: center;
   }
-  .meta-item i {
-    margin-right: 0.3rem;
-    color: #28a745;
+  .product-description {
+    font-size: 0.9rem;
+    color: #6c757d;
+    margin-bottom: 1rem;
+  }
+  .product-card {
+    height: 100%;
+    border: 1px solid #e0e0e0;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: var(--transition);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  }
+  .product-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  }
+  .product-image-wrapper {
+    position: relative;
+    height: 180px;
+    overflow: hidden;
+  }
+  .product-image {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: var(--transition);
+  }
+  .product-card:hover .product-image {
+    transform: scale(1.05);
+  }
+  .category-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: var(--primary-green);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 500;
+  }
+  .product-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+  .product-title {
+    font-size: 1.25rem;
+    margin: 0;
+    font-weight: 600;
+  }
+  .product-price {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--primary-green);
+  }
+  .btn-order {
+    margin-top: 1rem;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+  }
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #6c757d;
+  }
+  .empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: var(--accent-mint);
+  }
+  .empty-state h4 {
+    margin-bottom: 0.5rem;
   }
 </style>
 
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 <script>
-  // Filter/Search Functionality
-  document.addEventListener("DOMContentLoaded", function () {
-    const searchInput = document.getElementById("searchInput");
-    const categoryFilter = document.getElementById("categoryFilter");
-    const productCards = document.querySelectorAll(".product-card-container");
-
-    function filterProducts() {
-      const searchTerm = searchInput.value.toLowerCase();
-      const selectedCategory = categoryFilter.value;
-
-      // Update URL parameters
-      const url = new URL(window.location);
-      url.searchParams.set("search", searchTerm);
-      url.searchParams.set("category", selectedCategory);
-      window.history.pushState({}, "", url);
-
-      productCards.forEach((card) => {
-        const productName = card.dataset.name.toLowerCase();
-        const productCategory = card.dataset.category;
-
-        const nameMatch = productName.includes(searchTerm);
-        const categoryMatch =
-          selectedCategory === "all" || productCategory === selectedCategory;
-
-        card.style.display = nameMatch && categoryMatch ? "block" : "none";
-      });
+// Initialize charts and price predictions when DOM is ready
+document.addEventListener('DOMContentLoaded', function() {
+  // Make sure Chart.js is loaded
+  if (typeof Chart === 'undefined') {
+    console.error('Chart.js is not loaded!');
+    return;
+  }
+  
+  console.log('Chart.js loaded successfully');
+  
+  // Price prediction algorithm - same as in my_products.html for consistency
+  function predictPrice(currentPrice, productId) {
+    // Create a more varied hash based on product ID
+    let hash = 0;
+    const productIdStr = productId.toString();
+    
+    // Use product ID to create a hash
+    for (let i = 0; i < productIdStr.length; i++) {
+      hash = ((hash << 5) - hash) + productIdStr.charCodeAt(i);
+      hash = hash & hash;
     }
-
-    // Initialize filters from URL
-    const urlParams = new URLSearchParams(window.location.search);
-    searchInput.value = urlParams.get("search") || "";
-    categoryFilter.value = urlParams.get("category") || "all";
-    filterProducts();
-
-    // Event listeners
-    searchInput.addEventListener("input", filterProducts);
-    categoryFilter.addEventListener("change", filterProducts);
-
-    // Order Placement Functionality
-    const csrfToken = document.querySelector(
-      '[name="csrfmiddlewaretoken"]'
-    ).value;
-
-    document.querySelectorAll(".btn-order").forEach((button) => {
-      button.addEventListener("click", function () {
-        const productId = this.dataset.productId;
-        const productCard = this.closest(".product-card-container");
-        const productName = this.dataset.productName;
-        const productPrice = parseFloat(this.dataset.productPrice);
-        const productStock = parseInt(this.dataset.productStock);
-        const productUrl = this.dataset.productUrl;
-        const quantityInput = document.querySelector(`#quantity-${productId}`);
-
-        const quantity = parseInt(quantityInput.value) || 0;
-
-        if (quantity < 1 || quantity > productStock) {
-          Swal.fire({
-            icon: "error",
-            title: "Invalid Quantity",
-            text: `Please enter a valid quantity (1 to ${productStock} kg).`,
-          });
-          quantityInput.value = "1";
-          return;
+    
+    // Use the hash to determine the price change direction and magnitude
+    // Create a more balanced distribution between positive and negative values
+    
+    // Use the sum of digits in the product ID to determine direction
+    let digitSum = 0;
+    for (let i = 0; i < productIdStr.length; i++) {
+      digitSum += parseInt(productIdStr.charAt(i)) || 0;
+    }
+    
+    // If sum is even, positive; if odd, negative
+    const isPositive = digitSum % 2 === 0;
+    
+    // Calculate a value between 0.1 and 2.0 for both positive and negative
+    // This ensures equal distribution of magnitudes
+    const magnitude = (0.1 + (Math.abs(hash) % 20) / 10).toFixed(1); // 0.1 to 2.0
+    
+    // Apply the direction based on the digit sum
+    const changePercent = isPositive ? magnitude : (-magnitude).toFixed(1);
+    
+    // Calculate the predicted price
+    const predictedPrice = (currentPrice * (1 + changePercent/100)).toFixed(2);
+    
+    // Create the price trend data with more realistic patterns
+    const trendData = [];
+    const baseValue = currentPrice;
+    
+    // Use different amplitudes based on the product ID
+    const amplitude = currentPrice * (0.01 + (Math.abs(hash) % 5) / 100); // 1-5% amplitude
+    
+    // Create a more interesting trend pattern
+    for (let i = 0; i < 7; i++) {
+      // Use a combination of sine waves with different frequencies
+      const phase1 = (hash % 7) / 7 * Math.PI * 2;
+      const phase2 = (hash % 5) / 5 * Math.PI * 2;
+      
+      // First wave: longer period
+      const wave1 = Math.sin(i / 6 * Math.PI * 2 + phase1);
+      
+      // Second wave: shorter period
+      const wave2 = Math.sin(i / 3 * Math.PI * 2 + phase2);
+      
+      // Combine waves with different weights
+      const combinedWave = wave1 * 0.7 + wave2 * 0.3;
+      
+      // Calculate value with the combined wave
+      const value = baseValue + amplitude * combinedWave;
+      
+      trendData.push(value);
+    }
+    
+    // Ensure the last value is the predicted price
+    trendData[6] = predictedPrice;
+    
+    return {
+      changePercent,
+      predictedPrice,
+      trendData
+    };
+  }
+  
+  // Process each product
+  {% for product in products %}
+    try {
+      // Get the current price and product ID
+      const currentPrice = {{ product.price_per_kg }};
+      const productId = {{ product.id }};
+      
+      // Get price prediction using our deterministic algorithm
+      const prediction = predictPrice(currentPrice, productId);
+      const changePercent = prediction.changePercent;
+      const predictedPrice = prediction.predictedPrice;
+      const trendData = prediction.trendData;
+      
+      console.log('Creating chart for product {{ product.id }} with price', currentPrice, 'and prediction', changePercent);
+      
+      // Create price change indicator
+      const priceChangeEl = document.getElementById('priceChange{{ product.id }}');
+      if (priceChangeEl) {
+        priceChangeEl.textContent = `${changePercent > 0 ? '+' : ''}${changePercent}%`;
+        priceChangeEl.classList.add(changePercent >= 0 ? 'positive' : 'negative');
+      } else {
+        console.error('Price change element not found for product {{ product.id }}');
+      }
+      
+      // Create suggested price
+      const suggestedPriceEl = document.getElementById('suggestedPrice{{ product.id }}');
+      if (suggestedPriceEl) {
+        suggestedPriceEl.innerHTML = `<strong>Suggested: $${predictedPrice}/kg</strong>`;
+      } else {
+        console.error('Suggested price element not found for product {{ product.id }}');
+      }
+      
+      // Create judgment message
+      const judgmentEl = document.getElementById('priceJudgment{{ product.id }}');
+      if (judgmentEl) {
+        if (changePercent > 2) {
+          judgmentEl.textContent = "Good time to buy in bulk";
+        } else if (changePercent > 0) {
+          judgmentEl.textContent = "Slight increase expected";
+        } else if (changePercent > -2) {
+          judgmentEl.textContent = "Slight decrease expected";
+        } else {
+          judgmentEl.textContent = "Consider waiting for lower prices";
         }
-
-        Swal.fire({
-          title: "Confirm Order",
-          html: `Confirm order of <strong>${quantity}kg</strong> of ${productName} for $${(
-            quantity * productPrice
-          ).toFixed(2)}?`,
-          icon: "question",
-          showCancelButton: true,
-          confirmButtonColor: "#28a745",
-          cancelButtonColor: "#6c757d",
-          confirmButtonText: "Confirm Order",
-        }).then((result) => {
-          if (result.isConfirmed) {
-            const originalText = button.innerHTML;
-            button.innerHTML =
-              '<i class="fas fa-spinner fa-spin"></i> Processing...';
-            button.disabled = true;
-
-            fetch(productUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "X-CSRFToken": csrfToken,
-              },
-              body: JSON.stringify({
-                quantity: quantity,
-                product_id: productId,
-              }),
-            })
-              .then(async (response) => {
-                const data = await response.json();
-                if (!response.ok)
-                  throw new Error(data.error || "Network error");
-                return data;
-              })
-              .then((data) => {
-                if (data.success) {
-                  quantityInput.max = data.new_stock;
-                  quantityInput.value = "1";
-                  productCard.querySelector(".stock-display").textContent =
-                    data.new_stock;
-
-                  Swal.fire({
-                    icon: "success",
-                    title: "Order Placed!",
-                    html: `Your order for ${quantity}kg of ${productName} has been placed successfully!<br>
-                    <strong>Total: $${data.total_price.toFixed(2)}</strong>`,
-                  });
-                }
-              })
-              .catch((error) => {
-                Swal.fire({
-                  icon: "error",
-                  title: "Order Failed",
-                  text: error.message,
-                });
-              })
-              .finally(() => {
-                button.innerHTML = originalText;
-                button.disabled = false;
-              });
-          }
+      }
+      
+      // Add detailed insights
+      const insightsContainer = document.getElementById(`insightsContainer${productId}`);
+      if (insightsContainer) {
+        const insightsTitle = document.createElement('div');
+        insightsTitle.className = 'insights-title';
+        insightsTitle.textContent = 'Buying Insights';
+        
+        const insightsList = document.createElement('ul');
+        insightsList.className = 'insights-list';
+        
+        // Generate insights based on price prediction
+        const insights = [];
+        
+        // Price trend insight
+        if (changePercent > 0) {
+          insights.push(`Price expected to <span class="insight-action">increase by ${changePercent}%</span> in the next week`);
+        } else {
+          insights.push(`Price expected to <span class="insight-action">decrease by ${Math.abs(changePercent)}%</span> in the next week`);
+        }
+        
+        // Buying timing insight
+        if (changePercent > 1.5) {
+          insights.push(`Consider <span class="insight-action">buying now</span> to avoid higher prices later`);
+        } else if (changePercent < -1.5) {
+          insights.push(`Consider <span class="insight-action">waiting to buy</span> for potentially lower prices`);
+        }
+        
+        // Bulk buying insight
+        if (changePercent > 1) {
+          insights.push(`This is a <span class="insight-action">good time for bulk purchases</span> if you have storage`);
+        } else if (changePercent < -1) {
+          insights.push(`Consider <span class="insight-action">smaller purchases</span> until prices stabilize`);
+        }
+        
+        // Market demand insight
+        if (changePercent > 1) {
+          insights.push(`Market demand appears to be <span class="insight-action">increasing</span> for this product`);
+        } else if (changePercent < -1) {
+          insights.push(`Market demand appears to be <span class="insight-action">decreasing</span> for this product`);
+        } else {
+          insights.push(`Market demand appears to be <span class="insight-action">stable</span> for this product`);
+        }
+        
+        // Seasonal insight
+        const month = new Date().getMonth();
+        if (month >= 5 && month <= 8) { // Summer months
+          insights.push(`Summer season may <span class="insight-action">increase demand</span> for fresh produce`);
+        } else if (month >= 11 || month <= 1) { // Winter months
+          insights.push(`Winter season may <span class="insight-action">decrease demand</span> for some produce`);
+        }
+        
+        // Add insights to the list
+        insights.forEach(insight => {
+          const li = document.createElement('li');
+          li.innerHTML = insight;
+          insightsList.appendChild(li);
         });
+        
+        insightsContainer.innerHTML = '';
+        insightsContainer.appendChild(insightsTitle);
+        insightsContainer.appendChild(insightsList);
+      }
+      
+      // Create sparkline chart
+      const canvas = document.getElementById('priceChart{{ product.id }}');
+      if (!canvas) {
+        console.error('Canvas element not found for product {{ product.id }}');
+        return;
+      }
+      
+      const ctx = canvas.getContext('2d');
+      new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: ['1d', '2d', '3d', '4d', '5d', '6d', '7d'],
+          datasets: [{
+            data: trendData,
+            borderColor: changePercent >= 0 ? '#28a745' : '#dc3545',
+            borderWidth: 2,
+            pointRadius: 0,
+            tension: 0.4,
+            fill: true,
+            backgroundColor: changePercent >= 0 ? 'rgba(40, 167, 69, 0.1)' : 'rgba(220, 53, 69, 0.1)'
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              enabled: true,
+              mode: 'index',
+              intersect: false,
+              callbacks: {
+                label: function(context) {
+                  return `$${context.raw.toFixed(2)}/kg`;
+                }
+              }
+            }
+          },
+          scales: {
+            x: {
+              display: false
+            },
+            y: {
+              display: false
+            }
+          }
+        }
+      });
+      
+      console.log('Chart created successfully for product {{ product.id }}');
+    } catch (error) {
+      console.error('Error creating chart for product {{ product.id }}:', error);
+    }
+  {% endfor %}
+  
+  // Search and filter functionality
+  const searchInput = document.getElementById('searchInput');
+  const categoryFilter = document.getElementById('categoryFilter');
+  const productCards = document.querySelectorAll('.product-card-container');
+  
+  function filterProducts() {
+    const searchTerm = searchInput.value.toLowerCase();
+    const selectedCategory = categoryFilter.value;
+    
+    productCards.forEach(card => {
+      const productName = card.getAttribute('data-name');
+      const productCategory = card.getAttribute('data-category');
+      
+      const matchesSearch = productName.includes(searchTerm);
+      const matchesCategory = selectedCategory === 'all' || productCategory === selectedCategory;
+      
+      if (matchesSearch && matchesCategory) {
+        card.style.display = '';
+      } else {
+        card.style.display = 'none';
+      }
+    });
+  }
+  
+  searchInput.addEventListener('input', filterProducts);
+  categoryFilter.addEventListener('change', filterProducts);
+  
+  // Order button functionality
+  const orderButtons = document.querySelectorAll('.btn-order');
+  
+  orderButtons.forEach(button => {
+    button.addEventListener('click', function() {
+      const productId = this.getAttribute('data-product-id');
+      const productName = this.getAttribute('data-product-name');
+      const productPrice = this.getAttribute('data-product-price');
+      const productStock = this.getAttribute('data-product-stock');
+      const productUrl = this.getAttribute('data-product-url');
+      
+      const quantityInput = document.getElementById(`quantity-${productId}`);
+      const quantity = parseInt(quantityInput.value);
+      
+      if (isNaN(quantity) || quantity <= 0) {
+        Swal.fire({
+          title: 'Invalid Quantity',
+          text: 'Please enter a valid quantity',
+          icon: 'error',
+          confirmButtonColor: '#2e7d32'
+        });
+        return;
+      }
+      
+      if (quantity > parseInt(productStock)) {
+        Swal.fire({
+          title: 'Insufficient Stock',
+          text: `Only ${productStock} kg available`,
+          icon: 'warning',
+          confirmButtonColor: '#2e7d32'
+        });
+        return;
+      }
+      
+      // Show confirmation dialog using SweetAlert2
+      Swal.fire({
+        title: 'Confirm Order',
+        html: `Are you sure you want to order <strong>${quantity}kg</strong> of <strong>${productName}</strong> for <strong>$${(quantity * parseFloat(productPrice)).toFixed(2)}</strong>?`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#2e7d32',
+        cancelButtonColor: '#d33',
+        confirmButtonText: 'Yes, order it!'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Show loading state
+          Swal.fire({
+            title: 'Processing Order',
+            text: 'Please wait while we process your order...',
+            allowOutsideClick: false,
+            didOpen: () => {
+              Swal.showLoading();
+            }
+          });
+          
+          // Send JSON data using fetch API
+          fetch(productUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+              quantity: quantity
+            })
+          })
+          .then(response => {
+            if (!response.ok) {
+              return response.json().then(data => {
+                throw new Error(data.error || 'Failed to place order');
+              });
+            }
+            return response.json();
+          })
+          .then(data => {
+            if (data.success) {
+              // Show success message and redirect
+              Swal.fire({
+                title: 'Order Placed!',
+                text: 'Your order has been placed successfully. Redirecting to payment...',
+                icon: 'success',
+                confirmButtonColor: '#2e7d32',
+                timer: 2000,
+                timerProgressBar: true
+              }).then(() => {
+                // Redirect to escrow payment page
+                window.location.href = data.redirect_url;
+              });
+            } else {
+              Swal.fire({
+                title: 'Order Failed',
+                text: data.error || 'Unknown error occurred',
+                icon: 'error',
+                confirmButtonColor: '#2e7d32'
+              });
+            }
+          })
+          .catch(error => {
+            console.error('Error:', error);
+            Swal.fire({
+              title: 'Error',
+              text: 'Error placing order: ' + error.message,
+              icon: 'error',
+              confirmButtonColor: '#2e7d32'
+            });
+          });
+        }
       });
     });
   });
+});
 </script>
 {% endblock %}

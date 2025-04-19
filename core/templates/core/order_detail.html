@@ -1,0 +1,274 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Order Details</h5>
+                    <a href="{% url 'order_history' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Orders
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Order ID:</strong> #{{ order.id }}</p>
+                            <p><strong>Product:</strong> {{ order.product.name }}</p>
+                            <p><strong>Quantity:</strong> {{ order.quantity }}</p>
+                            <p><strong>Total Amount:</strong> ${{ order.total_price }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Status:</strong> 
+                                <span class="badge {% if order.status == 'Completed' %}bg-success{% elif order.status == 'Processing' %}bg-primary{% elif order.status == 'Shipped' %}bg-info{% elif order.status == 'Cancelled' %}bg-danger{% elif order.status == 'Refunded' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ order.status }}
+                                </span>
+                            </p>
+                            <p><strong>Payment Status:</strong> 
+                                <span class="badge {% if order.payment_status == 'Released' %}bg-success{% elif order.payment_status == 'In Escrow' %}bg-primary{% elif order.payment_status == 'Refunded' %}bg-warning{% else %}bg-secondary{% endif %}">
+                                    {{ order.payment_status }}
+                                </span>
+                            </p>
+                            <p><strong>Order Date:</strong> {{ order.created_at|date:"M d, Y" }}</p>
+                        </div>
+                    </div>
+                    {% if order.payment_status == 'Pending' and user == order.buyer %}
+                    <div class="text-center mt-3">
+                        <a href="{% url 'escrow_payment' order.id %}" class="btn btn-primary">
+                            <i class="fas fa-credit-card"></i> Pay Now
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    {% if order.escrow and order.escrow.status == 'Funded' and order.status == 'Completed' and user == order.buyer %}
+                    <div class="text-center mt-3">
+                        <button class="btn btn-success" onclick="confirmOrder({{ order.id }})">
+                            <i class="fas fa-check-circle"></i> Confirm Order
+                        </button>
+                        <a href="{% url 'dispute_escrow' order.id %}" class="btn btn-danger ms-2">
+                            <i class="fas fa-exclamation-triangle"></i> Dispute Order
+                        </a>
+                    </div>
+                    {% endif %}
+                    
+                    {% if order.escrow and order.escrow.status == 'Waiting_Confirmation' %}
+                    <div class="text-center mt-3">
+                        <div class="alert alert-info">
+                            <i class="fas fa-clock"></i> Payment will be automatically released after 24 hours from confirmation.
+                            <div id="countdown-timer" class="mt-2" data-release-time="{{ order.escrow.scheduled_release_time|date:'c' }}">
+                                <span class="countdown-label">Time remaining:</span>
+                                <span class="countdown-value"></span>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            {% if escrow %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Escrow Information</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Escrow ID:</strong> #{{ escrow.id }}</p>
+                            <p><strong>Amount:</strong> ${{ escrow.amount }}</p>
+                            <p><strong>Status:</strong> 
+                                <span class="badge {% if escrow.status == 'Released' %}bg-success{% elif escrow.status == 'Funded' %}bg-primary{% elif escrow.status == 'Disputed' %}bg-warning{% elif escrow.status == 'Refunded' %}bg-danger{% else %}bg-secondary{% endif %}">
+                                    {{ escrow.status }}
+                                </span>
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Created:</strong> {{ escrow.created_at|date:"M d, Y" }}</p>
+                            {% if escrow.released_at %}
+                            <p><strong>Released:</strong> {{ escrow.released_at|date:"M d, Y" }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    {% if escrow.status == 'Funded' and user == order.seller %}
+                    <form method="post" action="{% url 'release_escrow' escrow.id %}" class="mb-3">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-success">Release Payment</button>
+                    </form>
+                    {% endif %}
+
+                    {% if escrow.status == 'Funded' and user == order.buyer and not escrow.dispute %}
+                    <form method="post" action="{% url 'dispute_escrow' order.id %}" class="mb-3">
+                        {% csrf_token %}
+                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#disputeModal">
+                            File Dispute
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if escrow.dispute %}
+                    <div class="alert alert-warning">
+                        <h6>Dispute Information</h6>
+                        <p><strong>Reason:</strong> {{ escrow.dispute.reason }}</p>
+                        <p><strong>Status:</strong> {{ escrow.dispute_status }}</p>
+                        {% if escrow.resolution_notes %}
+                        <p><strong>Resolution:</strong> {{ escrow.resolution_notes }}</p>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Dispute Modal -->
+<div class="modal fade" id="disputeModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">File Dispute</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'dispute_escrow' order.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="reason" class="form-label">Reason for Dispute</label>
+                        <textarea class="form-control" id="reason" name="reason" rows="3" required></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-warning">Submit Dispute</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+  #countdown-timer {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    margin-top: 1rem;
+  }
+
+  .countdown-label {
+    font-weight: 600;
+    margin-right: 0.5rem;
+  }
+
+  .countdown-value {
+    font-family: monospace;
+    font-size: 1.1rem;
+    color: #2e7d32;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .countdown-value.expiring {
+    color: #dc3545;
+    animation: pulse 1s infinite;
+  }
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+  function confirmOrder(orderId) {
+    Swal.fire({
+      title: 'Confirm Order Completion',
+      text: 'Are you sure you want to confirm this order? This will initiate the 24-hour countdown for payment release.',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#2e7d32',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, confirm it!'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        fetch(`/order/${orderId}/confirm/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          },
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success) {
+            Swal.fire(
+              'Confirmed!',
+              'Your order has been confirmed. Payment will be released after 24 hours.',
+              'success'
+            ).then(() => {
+              window.location.reload();
+            });
+          } else {
+            Swal.fire(
+              'Error!',
+              data.error || 'Something went wrong.',
+              'error'
+            );
+          }
+        });
+      }
+    });
+  }
+
+  // Countdown timer functionality
+  function updateCountdown() {
+    const timerElement = document.getElementById('countdown-timer');
+    if (!timerElement) return;
+
+    const releaseTime = new Date(timerElement.dataset.releaseTime).getTime();
+    const now = new Date().getTime();
+    const timeLeft = releaseTime - now;
+
+    if (timeLeft <= 0) {
+      // Time's up - check if payment should be released
+      fetch('/check-pending-releases/', {
+        method: 'GET',
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.location.reload();
+        }
+      });
+      return;
+    }
+
+    // Calculate hours, minutes, seconds
+    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+    // Update the display
+    const countdownValue = timerElement.querySelector('.countdown-value');
+    countdownValue.textContent = `${hours}h ${minutes}m ${seconds}s`;
+
+    // Add visual feedback when less than 1 hour remains
+    if (hours < 1) {
+      countdownValue.classList.add('expiring');
+    } else {
+      countdownValue.classList.remove('expiring');
+    }
+  }
+
+  // Start countdown if timer element exists
+  if (document.getElementById('countdown-timer')) {
+    updateCountdown();
+    setInterval(updateCountdown, 1000);
+  }
+</script>
+{% endblock %} 

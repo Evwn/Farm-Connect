@@ -1,0 +1,63 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Payment Cancelled</h4>
+                    <a href="{% url 'order_history' %}" class="btn btn-outline-dark btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Orders
+                    </a>
+                </div>
+                <div class="card-body text-center">
+                    <div class="mb-4">
+                        <i class="fas fa-times-circle text-warning" style="font-size: 4rem;"></i>
+                    </div>
+                    <h3>Payment Cancelled</h3>
+                    <p class="lead">Your PayPal payment was cancelled.</p>
+                    <p>You can try again later or choose a different payment method.</p>
+                    
+                    <div class="alert alert-info mt-4">
+                        <h5>Order Details</h5>
+                        <p><strong>Order ID:</strong> #{{ order.id }}</p>
+                        <p><strong>Product:</strong> {{ order.product.name }}</p>
+                        <p><strong>Amount:</strong> ${{ order.total_price }}</p>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <a href="{% url 'escrow_payment' order.id %}" class="btn btn-primary">
+                            <i class="fas fa-credit-card"></i> Try Payment Again
+                        </a>
+                        <a href="{% url 'order_history' %}" class="btn btn-outline-secondary ms-2">
+                            <i class="fas fa-list"></i> View All Orders
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-outline-dark {
+        border-color: rgba(0, 0, 0, 0.5);
+    }
+    
+    .btn-outline-dark:hover {
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    
+    .btn-outline-secondary {
+        border-color: #6c757d;
+        color: #6c757d;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+    }
+</style>
+{% endblock %} 

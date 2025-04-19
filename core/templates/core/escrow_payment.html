@@ -1,0 +1,95 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <h4 class="mb-0">Escrow Payment</h4>
+                    <a href="{% url 'order_history' %}" class="btn btn-outline-light btn-sm">
+                        <i class="fas fa-arrow-left"></i> Back to Orders
+                    </a>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <h5>Order Details</h5>
+                        <p><strong>Product:</strong> {{ order.product.name }}</p>
+                        <p><strong>Quantity:</strong> {{ order.quantity }} kg</p>
+                        <p><strong>Total Amount:</strong> ${{ order.total_price }}</p>
+                        <p><strong>Escrow ID:</strong> {{ order.escrow_id }}</p>
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <h5>How Escrow Works</h5>
+                        <ol>
+                            <li>Your payment will be held securely in escrow</li>
+                            <li>Funds will be released to the farmer only after you confirm receipt</li>
+                            <li>You can file a dispute if there are any issues</li>
+                        </ol>
+                    </div>
+
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <h5 class="mb-3">Select Payment Method</h5>
+                        
+                        <div class="payment-methods">
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="payment_method" id="paypal" value="paypal" checked>
+                                <label class="form-check-label d-flex align-items-center" for="paypal">
+                                    <img src="{% static 'images/paypal-logo.svg' %}" alt="PayPal" class="payment-logo me-2" style="height: 24px;">
+                                    PayPal
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="payment_method" id="paystack" value="paystack" disabled>
+                                <label class="form-check-label d-flex align-items-center" for="paystack">
+                                    <img src="{% static 'images/paystack-logo.svg' %}" alt="Paystack" class="payment-logo me-2" style="height: 24px;">
+                                    Paystack <span class="badge bg-secondary ms-2">Coming Soon</span>
+                                </label>
+                            </div>
+                            
+                            <div class="form-check mb-3">
+                                <input class="form-check-input" type="radio" name="payment_method" id="skrill" value="skrill" disabled>
+                                <label class="form-check-label d-flex align-items-center" for="skrill">
+                                    <img src="{% static 'images/skrill-logo.svg' %}" alt="Skrill" class="payment-logo me-2" style="height: 24px;">
+                                    Skrill <span class="badge bg-secondary ms-2">Coming Soon</span>
+                                </label>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-4 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg flex-grow-1">Proceed to Payment</button>
+                            <a href="{% url 'order_history' %}" class="btn btn-outline-secondary btn-lg">
+                                <i class="fas fa-clock"></i> Pay Later
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .btn-outline-light {
+        border-color: rgba(255, 255, 255, 0.5);
+    }
+    
+    .btn-outline-light:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .btn-outline-secondary {
+        border-color: #6c757d;
+        color: #6c757d;
+    }
+    
+    .btn-outline-secondary:hover {
+        background-color: #6c757d;
+        color: white;
+    }
+</style>
+{% endblock %} 

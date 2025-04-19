@@ -1,0 +1,114 @@
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <h2 class="h3 mb-0">
+                {% if is_admin %}
+                    Dispute Management
+                {% else %}
+                    My Disputes
+                {% endif %}
+            </h2>
+        </div>
+    </div>
+
+    {% if disputes %}
+    <div class="row">
+        {% for escrow in disputes %}
+        <div class="col-12 mb-4">
+            <div class="card dispute-card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-0">Order #{{ escrow.order.id }}</h5>
+                        <small class="text-muted">Filed on {{ escrow.dispute_date|date:"M d, Y" }}</small>
+                    </div>
+                    <div class="dispute-status">
+                        <span class="badge {% if escrow.dispute_status == 'Pending' %}bg-warning
+                                         {% elif escrow.dispute_status == 'Under_Review' %}bg-info
+                                         {% elif escrow.dispute_status == 'Seller_Responded' %}bg-primary
+                                         {% elif escrow.dispute_status == 'Mediation' %}bg-secondary
+                                         {% elif 'Resolved' in escrow.dispute_status %}bg-success
+                                         {% endif %}">
+                            {{ escrow.get_dispute_status_display }}
+                        </span>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Dispute Details</h6>
+                            <p><strong>Product:</strong> {{ escrow.order.product.name }}</p>
+                            <p><strong>Amount:</strong> ${{ escrow.amount }}</p>
+                            <p><strong>Reason:</strong> {{ escrow.dispute_reason|truncatewords:20 }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Parties Involved</h6>
+                            <p><strong>Buyer:</strong> {{ escrow.order.buyer.username }}</p>
+                            <p><strong>Seller:</strong> {{ escrow.order.product.farmer.username }}</p>
+                            {% if escrow.dispute_resolved_date %}
+                            <p><strong>Resolved:</strong> {{ escrow.dispute_resolved_date|date:"M d, Y" }}</p>
+                            {% endif %}
+                        </div>
+                    </div>
+                    
+                    <div class="mt-3">
+                        <a href="{% url 'dispute_detail' escrow.order.id %}" class="btn btn-primary">
+                            View Details
+                        </a>
+                        {% if is_admin and escrow.dispute_status == 'Pending' %}
+                        <a href="{% url 'dispute_detail' escrow.order.id %}" class="btn btn-info">
+                            Review Dispute
+                        </a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        {% if is_admin %}
+            There are no active disputes at the moment.
+        {% else %}
+            You don't have any active disputes.
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+<style>
+.dispute-card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    transition: transform 0.2s;
+}
+
+.dispute-card:hover {
+    transform: translateY(-2px);
+}
+
+.dispute-status .badge {
+    padding: 0.5em 1em;
+    font-size: 0.85rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+.btn {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+}
+
+.btn-info {
+    color: white;
+}
+</style>
+{% endblock %} 

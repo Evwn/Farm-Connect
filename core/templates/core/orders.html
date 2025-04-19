@@ -27,6 +27,9 @@
         <a href="?status=cancelled" class="filter-btn {% if status_filter == 'cancelled' %}active{% endif %}">
           Cancelled • {{ status_counts.cancelled }}
         </a>
+        <a href="?status=refunded" class="filter-btn {% if status_filter == 'refunded' %}active{% endif %}">
+          Refunded • {{ status_counts.refunded }}
+        </a>
       </div>
     </div>
 
@@ -41,11 +44,33 @@
           <span class="status-badge status-{{ order.status|lower }}">
             <i class="status-icon"></i>{{ order.status }}
           </span>
+          <span class="payment-status-badge payment-status-{{ order.payment_status|lower }}">
+            <i class="fas fa-lock"></i>
+            {% if order.escrow %}
+              {% if order.escrow.status == 'Disputed' %}
+                Disputed
+              {% elif order.escrow.status == 'Refunded' %}
+                Refunded
+              {% elif order.escrow.status == 'Released' %}
+                Released
+              {% elif order.escrow.status == 'Waiting_Confirmation' %}
+                Waiting Confirmation
+              {% elif order.escrow.status == 'Funded' %}
+                In Escrow
+              {% elif order.escrow.status == 'Pending' %}
+                Pending
+              {% else %}
+                {{ order.escrow.status }}
+              {% endif %}
+            {% else %}
+              {{ order.payment_status }}
+            {% endif %}
+          </span>
         </div>
         
         <div class="order-body">
           <div class="product-info">
-            <div class="product-image" style="background-image: url('{% if order.product.image %}{{ order.product.image.url }}{% else %}{% static 'images/default-product.png' %}{% endif %}')"></div>
+            <div class="product-image" style="background-image: url('{% if order.product.image %}{{ order.product.image.url }}{% else %}{% static 'images/default-product.png' %}{% endif %}');"></div>
             <div class="product-details">
               <h4>{{ order.product.name }}</h4>
               <div class="product-meta">
@@ -67,22 +92,58 @@
         </div>
 
         <div class="order-footer">
-          <form method="post" action="{% url 'update_order_status' order.id %}">
-            {% csrf_token %}
+          {% if order.escrow and order.escrow.status == 'Disputed' %}
+            <div class="dispute-actions">
+              <a href="{% url 'dispute_detail' order.id %}" class="resolve-dispute-btn">
+                <i class="fas fa-gavel"></i> Resolve Dispute
+              </a>
+            </div>
+          {% elif order.escrow and order.escrow.status == 'Waiting_Confirmation' %}
+            <div class="countdown-container">
+              <div id="countdown-timer-{{ order.id }}" class="countdown-timer" data-release-time="{{ order.escrow.scheduled_release_time|date:'c' }}">
+                <span class="countdown-label">Time until payment release:</span>
+                <span class="countdown-value"></span>
+              </div>
+            </div>
+          {% elif order.escrow and order.escrow.status == 'Released' %}
+            <div class="completed-order-info">
+              <span class="completed-badge">
+                <i class="fas fa-check-circle"></i> Order Completed
+              </span>
+              <span class="payment-released-badge">
+                <i class="fas fa-money-bill-wave"></i> Payment Released
+              </span>
+            </div>
+          {% elif order.escrow and order.escrow.status == 'Refunded' %}
+            <div class="completed-order-info">
+              <span class="refunded-badge">
+                <i class="fas fa-undo"></i> Order Refunded
+              </span>
+            </div>
+          {% elif order.payment_status != 'Released' and order.payment_status != 'Disputed' and not order.escrow or order.escrow.status != 'Released' and order.escrow.status != 'Disputed' %}
             <div class="status-control">
               <div class="select-wrapper">
-                <select name="status" class="status-select">
-                  {% for value, label in order.STATUS_CHOICES %}
-                  <option value="{{ value }}" {% if order.status == value %}selected{% endif %}>{{ label }}</option>
-                  {% endfor %}
+                <select class="status-select" id="status-select-{{ order.id }}">
+                  <option value="Pending" {% if order.status == 'Pending' %}selected{% endif %}>Pending</option>
+                  <option value="Processing" {% if order.status == 'Processing' %}selected{% endif %}>Processing</option>
+                  <option value="Shipped" {% if order.status == 'Shipped' %}selected{% endif %}>Shipped</option>
+                  <option value="Completed" {% if order.status == 'Completed' %}selected{% endif %}>Completed</option>
+                  <option value="Cancelled" {% if order.status == 'Cancelled' %}selected{% endif %}>Cancelled</option>
                 </select>
                 <i class="fas fa-chevron-down"></i>
               </div>
-              <button type="submit" class="status-update-btn">
-                <i class="fas fa-sync"></i> Update Status
+              <button class="status-update-btn" onclick="updateOrderStatus({{ order.id }})">
+                <i class="fas fa-save"></i>
+                Update Status
               </button>
             </div>
-          </form>
+            {% if order.status == 'Completed' and order.payment_status == 'Funded' %}
+              <button class="release-btn" onclick="releaseFunds({{ order.id }})">
+                <i class="fas fa-unlock"></i>
+                Release Funds
+              </button>
+            {% endif %}
+          {% endif %}
         </div>
       </div>
       {% empty %}
@@ -209,58 +270,92 @@
   .status-cancelled { background: #f8d7da; color: #842029; }
   .status-cancelled .status-icon { background: #842029; }
 
-  /* Order Body */
+  .status-refunded { background: #fff3cd; color: #856404; }
+  .status-refunded .status-icon { background: #856404; }
+
+  /* Payment Status Badges */
+  .payment-status-badge {
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .payment-status-pending { background: #fff3cd; color: #856404; }
+  .payment-status-in-escrow { background: #cce5ff; color: #004085; }
+  .payment-status-released { background: #d4edda; color: #155724; }
+  .payment-status-refunded { background: #f8d7da; color: #721c24; }
+  .payment-status-disputed { background: #f8d7da; color: #721c24; }
+
+  .payment-status-badge.payment-status-refunded {
+    background: #f8d7da;
+    color: #842029;
+  }
+  .payment-status-badge.payment-status-refunded i {
+    background: #842029;
+  }
+  
+  .payment-status-badge.payment-status-waiting_confirmation {
+    background: #fff3cd;
+    color: #856404;
+  }
+  .payment-status-badge.payment-status-waiting_confirmation i {
+    background: #856404;
+  }
+
+  /* Order Body Styling */
   .order-body {
-    display: grid;
-    grid-template-columns: 2fr 1fr;
-    gap: 2rem;
+    display: flex;
+    justify-content: space-between;
     margin-bottom: 1.5rem;
   }
 
   .product-info {
     display: flex;
-    align-items: center;
     gap: 1.5rem;
+    flex: 1;
   }
 
   .product-image {
     width: 80px;
     height: 80px;
-    border-radius: 12px;
     background-size: cover;
     background-position: center;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
   }
 
   .product-details h4 {
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.5rem 0;
     color: #2d3436;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
   }
 
   .product-meta {
     display: flex;
     gap: 1rem;
     color: #666;
+    font-size: 0.9rem;
   }
 
   .customer-info {
     display: flex;
     align-items: center;
     gap: 1rem;
-    padding: 1rem;
-    background: #f8f9fa;
-    border-radius: 12px;
   }
 
   .customer-avatar {
     width: 40px;
     height: 40px;
+    background: #f0f0f0;
     border-radius: 50%;
-    background: #2e7d32;
-    color: white;
     display: flex;
     align-items: center;
     justify-content: center;
+    color: #666;
   }
 
   .customer-details {
@@ -274,11 +369,19 @@
   }
 
   .customer-email {
-    font-size: 0.9rem;
+    font-size: 0.8rem;
     color: #666;
   }
 
-  /* Status Control */
+  /* Order Footer Styling */
+  .order-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 1rem;
+    border-top: 2px solid #f8f9fa;
+  }
+
   .status-control {
     display: flex;
     gap: 1rem;
@@ -287,17 +390,16 @@
 
   .select-wrapper {
     position: relative;
-    flex: 1;
   }
 
   .status-select {
-    width: 100%;
-    padding: 0.8rem 1.2rem;
-    border: 2px solid #e0e0e0;
-    border-radius: 12px;
-    appearance: none;
+    padding: 0.8rem 2.5rem 0.8rem 1rem;
+    border: 1px solid #ddd;
+    border-radius: 8px;
     background: white;
-    font-size: 1rem;
+    font-size: 0.9rem;
+    appearance: none;
+    cursor: pointer;
   }
 
   .select-wrapper i {
@@ -314,7 +416,8 @@
     background: #2e7d32;
     color: white;
     border: none;
-    border-radius: 12px;
+    border-radius: 8px;
+    font-weight: 600;
     cursor: pointer;
     transition: all 0.3s ease;
     display: flex;
@@ -327,40 +430,166 @@
     transform: translateY(-2px);
   }
 
+  .release-btn {
+    padding: 0.8rem 1.5rem;
+    background: #2e7d32;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .release-btn:hover {
+    background: #1b5e20;
+    transform: translateY(-2px);
+  }
+
+  .resolve-dispute-btn {
+    padding: 0.8rem 1.5rem;
+    background: #dc3545;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    text-decoration: none;
+  }
+
+  .resolve-dispute-btn:hover {
+    background: #c82333;
+    transform: translateY(-2px);
+  }
+
+  .completed-order-info {
+    display: flex;
+    gap: 1rem;
+  }
+
+  .completed-badge, .payment-released-badge, .refunded-badge {
+    padding: 0.6rem 1.2rem;
+    border-radius: 25px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .completed-badge {
+    background: #d1e7dd;
+    color: #0f5132;
+  }
+
+  .payment-released-badge {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .refunded-badge {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
   /* Empty State */
   .empty-state {
     text-align: center;
-    padding: 4rem 0;
+    padding: 4rem 2rem;
   }
 
   .empty-illustration {
     font-size: 4rem;
-    color: #81c784;
+    color: #ddd;
     margin-bottom: 1.5rem;
   }
 
   .empty-state h3 {
-    color: #2d3436;
     margin-bottom: 0.5rem;
+    color: #2d3436;
   }
 
   .empty-state p {
     color: #666;
   }
 
-  /* Scrollbar Removal */
-  .scroll-hidden {
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+  /* Responsive Adjustments */
+  @media (max-width: 768px) {
+    .order-body {
+      flex-direction: column;
+      gap: 1.5rem;
+    }
+
+    .customer-info {
+      margin-top: 1rem;
+    }
+
+    .order-footer {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .status-control {
+      width: 100%;
+      flex-direction: column;
+    }
+
+    .status-select {
+      width: 100%;
+    }
+
+    .status-update-btn {
+      width: 100%;
+      justify-content: center;
+    }
   }
 
-  .scroll-hidden::-webkit-scrollbar {
-    display: none;
+  .countdown-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
   }
 
-  .order-list {
-    max-height: calc(100vh - 250px);
-    overflow-y: auto;
+  .countdown-timer {
+    background: rgba(255, 255, 255, 0.9);
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    text-align: center;
+    min-width: 200px;
+  }
+
+  .countdown-label {
+    font-weight: 600;
+    margin-right: 0.5rem;
+    color: #495057;
+  }
+
+  .countdown-value {
+    font-family: monospace;
+    font-size: 1.1rem;
+    color: #2e7d32;
+  }
+
+  @keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.5; }
+    100% { opacity: 1; }
+  }
+
+  .countdown-value.expiring {
+    color: #dc3545;
+    animation: pulse 1s infinite;
   }
 </style>
 
@@ -375,5 +604,187 @@
       icon.style.transform = 'scale(1)';
     });
   });
+
+  // Make payment status badges clickable for release
+  document.querySelectorAll('.payment-status-badge').forEach(badge => {
+    badge.addEventListener('click', function() {
+      const orderItem = this.closest('.order-item');
+      const status = orderItem.querySelector('.status-badge').textContent.trim();
+      const paymentStatus = this.textContent.trim();
+      
+      if (status === 'Completed' && paymentStatus === 'Funded') {
+        const releaseBtn = orderItem.querySelector('.release-btn');
+        if (releaseBtn) {
+          releaseBtn.click();
+        }
+      }
+    });
+  });
+
+  // Countdown timer functionality
+  function updateCountdown(timerId) {
+    const timerElement = document.getElementById(timerId);
+    if (!timerElement) return;
+
+    const releaseTime = new Date(timerElement.dataset.releaseTime).getTime();
+    const now = new Date().getTime();
+    const timeLeft = releaseTime - now;
+
+    if (timeLeft <= 0) {
+      // Time's up - check if payment should be released
+      fetch('/check-pending-releases/', {
+        method: 'GET',
+        headers: {
+          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+        }
+      })
+      .then(response => response.json())
+      .then(data => {
+        if (data.success) {
+          window.location.reload();
+        }
+      });
+      return;
+    }
+
+    // Calculate hours, minutes, seconds
+    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
+    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
+
+    // Update the display
+    const countdownValue = timerElement.querySelector('.countdown-value');
+    countdownValue.textContent = `${hours}h ${minutes}m ${seconds}s`;
+
+    // Add visual feedback when less than 1 hour remains
+    if (hours < 1) {
+      countdownValue.classList.add('expiring');
+    } else {
+      countdownValue.classList.remove('expiring');
+    }
+  }
+
+  // Start countdown for all timers
+  document.querySelectorAll('[id^="countdown-timer-"]').forEach(timer => {
+    const timerId = timer.id;
+    updateCountdown(timerId);
+    setInterval(() => updateCountdown(timerId), 1000);
+  });
+
+  // Add status update functionality
+  function updateOrderStatus(orderId) {
+    const statusSelect = document.getElementById(`status-select-${orderId}`);
+    const newStatus = statusSelect.value;
+    
+    // Show confirmation dialog using SweetAlert2
+    Swal.fire({
+      title: 'Update Order Status',
+      text: `Are you sure you want to update the order status to ${newStatus}?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#2e7d32',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, update it!'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Show loading state
+        Swal.fire({
+          title: 'Updating Status',
+          text: 'Please wait...',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+        
+        // Create form data
+        const formData = new FormData();
+        formData.append('status', newStatus);
+        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
+        
+        // Send request to the correct endpoint
+        fetch(`/dashboard/orders/${orderId}/update/`, {
+          method: 'POST',
+          body: formData
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+          }
+          // Show success message
+          Swal.fire({
+            title: 'Success!',
+            text: `Order status has been updated to ${newStatus}`,
+            icon: 'success',
+            confirmButtonColor: '#2e7d32'
+          }).then(() => {
+            window.location.reload();
+          });
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          Swal.fire({
+            title: 'Error!',
+            text: 'An error occurred while updating the order status. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#d33'
+          });
+        });
+      }
+    });
+  }
+
+  // Add release funds functionality
+  function releaseFunds(orderId) {
+    // Show confirmation dialog using SweetAlert2
+    Swal.fire({
+      title: 'Release Funds',
+      text: 'Are you sure you want to release the funds for this order?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonColor: '#2e7d32',
+      cancelButtonColor: '#d33',
+      confirmButtonText: 'Yes, release funds!'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        // Show loading state
+        Swal.fire({
+          title: 'Releasing Funds',
+          text: 'Please wait...',
+          allowOutsideClick: false,
+          allowEscapeKey: false,
+          showConfirmButton: false,
+          didOpen: () => {
+            Swal.showLoading();
+          }
+        });
+        
+        fetch(`/order/${orderId}/release/`, {
+          method: 'POST',
+          headers: {
+            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+          }
+        })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`Server responded with status: ${response.status}`);
+          }
+          // The view redirects to the order detail page, so we don't need to parse JSON
+          window.location.reload();
+        })
+        .catch(error => {
+          console.error('Error:', error);
+          Swal.fire({
+            title: 'Error!',
+            text: 'An error occurred while releasing funds. Please try again.',
+            icon: 'error',
+            confirmButtonColor: '#d33'
+          });
+        });
+      }
+    });
+  }
 </script>
 {% endblock %}

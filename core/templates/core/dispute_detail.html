@@ -1,0 +1,266 @@
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col">
+            <div class="d-flex justify-content-between align-items-center">
+                <h2 class="h3 mb-0">Dispute Details - Order #{{ order.id }}</h2>
+                <a href="{% url 'dispute_list' %}" class="btn btn-outline-primary">
+                    <i class="fas fa-arrow-left"></i> Back to Disputes
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Order and Dispute Information -->
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Order Information</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Product:</strong> {{ order.product.name }}</p>
+                    <p><strong>Quantity:</strong> {{ order.quantity }} kg</p>
+                    <p><strong>Total Amount:</strong> ${{ order.total_price }}</p>
+                    <p><strong>Order Date:</strong> {{ order.created_at|date:"M d, Y" }}</p>
+                    <p><strong>Status:</strong> 
+                        <span class="badge bg-primary">{{ order.status }}</span>
+                    </p>
+                    <p><strong>Dispute Filed:</strong> {{ escrow.dispute_date|date:"M d, Y" }}</p>
+                    <p><strong>Dispute Status:</strong>
+                        <span class="badge {% if escrow.dispute_status == 'Pending' %}bg-warning
+                                         {% elif escrow.dispute_status == 'Under_Review' %}bg-info
+                                         {% elif escrow.dispute_status == 'Seller_Responded' %}bg-primary
+                                         {% elif escrow.dispute_status == 'Mediation' %}bg-secondary
+                                         {% elif 'Resolved' in escrow.dispute_status %}bg-success
+                                         {% endif %}">
+                            {{ escrow.get_dispute_status_display }}
+                        </span>
+                    </p>
+                </div>
+            </div>
+
+            {% if is_admin %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Admin Actions</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'admin_dispute_resolution' order.id %}">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Resolution Type</label>
+                            <select name="resolution_type" class="form-select" required>
+                                <option value="">Select Resolution</option>
+                                <option value="Resolved_Seller">Resolve in Favor of Seller</option>
+                                <option value="Resolved_Buyer">Resolve in Favor of Buyer</option>
+                                <option value="Resolved_Compromise">Resolve with Compromise</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Resolution Amount (optional)</label>
+                            <input type="number" name="resolution_amount" class="form-control" step="0.01" min="0" max="{{ escrow.amount }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Resolution Notes</label>
+                            <textarea name="resolution_notes" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            Resolve Dispute
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Dispute Timeline and Chat -->
+        <div class="col-md-8">
+            <!-- Dispute Reason -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Dispute Reason</h5>
+                </div>
+                <div class="card-body">
+                    <p>{{ escrow.dispute_reason }}</p>
+                </div>
+            </div>
+
+            <!-- Seller Response -->
+            {% if is_seller and escrow.dispute_status == 'Pending' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Respond to Dispute</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{% url 'seller_dispute_response' order.id %}" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label class="form-label">Your Response</label>
+                            <textarea name="response" class="form-control" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Attachment (optional)</label>
+                            <input type="file" name="attachment" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            Submit Response
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Timeline -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Dispute Timeline</h5>
+                </div>
+                <div class="card-body">
+                    <div class="timeline">
+                        {% for entry in dispute_timeline %}
+                        <div class="timeline-item">
+                            <div class="timeline-marker"></div>
+                            <div class="timeline-content">
+                                <h6 class="mb-0">{{ entry.action }}</h6>
+                                <p class="text-muted mb-0">{{ entry.description }}</p>
+                                <small class="text-muted">{{ entry.created_at|date:"M d, Y H:i" }}</small>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Section -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Discussion</h5>
+                </div>
+                <div class="card-body">
+                    <div class="chat-messages">
+                        {% for message in dispute_messages %}
+                        <div class="chat-message {% if message.is_admin_message %}admin-message{% endif %}">
+                            <div class="message-header">
+                                <strong>{{ message.sender.username }}</strong>
+                                {% if message.is_admin_message %}
+                                <span class="badge bg-primary">Admin</span>
+                                {% endif %}
+                                <small class="text-muted">{{ message.created_at|date:"M d, Y H:i" }}</small>
+                            </div>
+                            <div class="message-content">
+                                {{ message.message }}
+                                {% if message.attachments %}
+                                <div class="message-attachment">
+                                    <a href="{{ message.attachments.url }}" target="_blank">
+                                        <i class="fas fa-paperclip"></i> View Attachment
+                                    </a>
+                                </div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+
+                    <form method="post" enctype="multipart/form-data" class="mt-3">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <textarea name="message" class="form-control" rows="2" placeholder="Type your message..." required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <input type="file" name="attachment" class="form-control">
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            Send Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Timeline Styles */
+.timeline {
+    position: relative;
+    padding: 1rem 0;
+}
+
+.timeline::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2px;
+    height: 100%;
+    background-color: #e9ecef;
+}
+
+.timeline-item {
+    position: relative;
+    padding-left: 2rem;
+    margin-bottom: 1.5rem;
+}
+
+.timeline-marker {
+    position: absolute;
+    left: -6px;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background-color: #007bff;
+    border: 2px solid #fff;
+}
+
+/* Chat Styles */
+.chat-messages {
+    max-height: 400px;
+    overflow-y: auto;
+    margin-bottom: 1rem;
+}
+
+.chat-message {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background-color: #f8f9fa;
+    border-radius: 0.5rem;
+}
+
+.admin-message {
+    background-color: #e3f2fd;
+}
+
+.message-header {
+    margin-bottom: 0.5rem;
+}
+
+.message-content {
+    white-space: pre-wrap;
+}
+
+.message-attachment {
+    margin-top: 0.5rem;
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid rgba(0,0,0,0.1);
+}
+
+/* Badge Styles */
+.badge {
+    padding: 0.5em 1em;
+    font-size: 0.85rem;
+}
+</style>
+{% endblock %} 

@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
+import uuid
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
@@ -41,15 +42,103 @@ class Order(models.Model):
         ('Cancelled', 'Cancelled'),
     ]
 
+    PAYMENT_STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('In Escrow', 'In Escrow'),
+        ('Released', 'Released'),
+        ('Refunded', 'Refunded'),
+    ]
+
     buyer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
     quantity = models.PositiveIntegerField()
     total_price = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Processing')
+    payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='Pending')
     created_at = models.DateTimeField(auto_now_add=True)
+    escrow_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     def __str__(self):
         return f"{self.quantity}kg of {self.product.name} by {self.buyer.username}"
+
+class EscrowTransaction(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Funded', 'Funded'),
+        ('Waiting_Confirmation', 'Waiting Confirmation'),
+        ('Confirmed', 'Confirmed'),
+        ('Awaiting_Release', 'Awaiting Release'),
+        ('Released', 'Released'),
+        ('Refunded', 'Refunded'),
+        ('Disputed', 'Disputed'),
+    ]
+
+    DISPUTE_STATUS_CHOICES = [
+        ('Pending', 'Pending Review'),
+        ('Under_Review', 'Under Review'),
+        ('Seller_Responded', 'Seller Responded'),
+        ('Mediation', 'In Mediation'),
+        ('Resolved_Seller', 'Resolved in Favor of Seller'),
+        ('Resolved_Buyer', 'Resolved in Favor of Buyer'),
+        ('Resolved_Compromise', 'Resolved with Compromise'),
+    ]
+
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='escrow')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    payment_reference = models.CharField(max_length=100, blank=True, null=True)
+    release_date = models.DateTimeField(null=True, blank=True)
+    confirmation_time = models.DateTimeField(null=True, blank=True)
+    scheduled_release_time = models.DateTimeField(null=True, blank=True)
+    dispute_reason = models.TextField(blank=True)
+    dispute_status = models.CharField(max_length=20, choices=DISPUTE_STATUS_CHOICES, blank=True, null=True)
+    dispute_date = models.DateTimeField(null=True, blank=True)
+    dispute_resolved_date = models.DateTimeField(null=True, blank=True)
+    resolution_notes = models.TextField(blank=True)
+    resolution_amount = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+
+    def __str__(self):
+        return f"Escrow for Order {self.order.id} - {self.status}"
+
+class DisputeResponse(models.Model):
+    escrow = models.ForeignKey(EscrowTransaction, on_delete=models.CASCADE, related_name='dispute_responses')
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    response = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    attachments = models.FileField(upload_to='dispute_attachments/', blank=True, null=True)
+
+    def __str__(self):
+        return f"Dispute Response for Escrow {self.escrow.id} by {self.user.username}"
+
+class DisputeMessage(models.Model):
+    escrow = models.ForeignKey(EscrowTransaction, on_delete=models.CASCADE, related_name='dispute_messages')
+    sender = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    message = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_admin_message = models.BooleanField(default=False)
+    attachments = models.FileField(upload_to='dispute_messages/', blank=True, null=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Message in Dispute {self.escrow.id} by {self.sender.username}"
+
+class DisputeTimeline(models.Model):
+    escrow = models.ForeignKey(EscrowTransaction, on_delete=models.CASCADE, related_name='dispute_timeline')
+    action = models.CharField(max_length=100)
+    description = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+    actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    status_change = models.CharField(max_length=20, choices=EscrowTransaction.DISPUTE_STATUS_CHOICES, blank=True, null=True)
+
+    class Meta:
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"Timeline Entry for Dispute {self.escrow.id}: {self.action}"
 
 class Farm(models.Model):
     SOIL_TYPES = [
