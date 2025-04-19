@@ -13,7 +13,7 @@ FarmConnect is a web-based marketplace that connects farmers directly with buyer
 
 1. **Clone or download the repository**
    ```bash
-   git clone https://github.com/yourusername/farmconnect.git
+   git clone https://github.com/Evwn/Farm-Connect
    cd farmconnect
    ```
 
