@@ -1,0 +1,314 @@
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+{% load product_filters %}
+
+{% block content %}
+<div class="dashboard-header">
+  <h1 class="dashboard-title">
+    Product Reviews <i class="fas fa-comments"></i>
+  </h1>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{% url 'browse_products' %}">Browse Products</a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">
+        {{ product.name }} Reviews
+      </li>
+    </ol>
+  </nav>
+</div>
+
+<div class="reviews-container">
+  <div class="product-header">
+    <img
+      src="{% if product.image %}{{ product.image.url }}{% else %}{% static 'images/default-product.png' %}{% endif %}"
+      alt="{{ product.name }}"
+      class="product-image"
+    />
+    <div class="product-info">
+      <h2>{{ product.name }}</h2>
+      <p class="farmer-name">
+        <i class="fas fa-user"></i>
+        {{ product.farmer.username }}
+      </p>
+      <p class="product-location">
+        <i class="fas fa-map-marker-alt"></i>
+        {{ product.location }}
+      </p>
+      <div class="average-rating">
+        <div class="stars">
+          {% with avg_rating=product.reviews.all|avg_rating %}
+            {% for i in "12345"|make_list %}
+              <i class="fas fa-star {% if forloop.counter <= avg_rating %}active{% endif %}"></i>
+            {% endfor %}
+          {% endwith %}
+        </div>
+        <span class="rating-text">
+          {{ product.reviews.all|avg_rating|floatformat:1 }} ({{ product.reviews.count }} reviews)
+        </span>
+      </div>
+    </div>
+  </div>
+
+  <div class="reviews-section">
+    <div class="reviews-header">
+      <h3>All Reviews</h3>
+      {% if user.role == 'buyer' and product in user.purchased_products %}
+        <a href="{% url 'submit_review' product.id %}" class="btn btn-primary">
+          <i class="fas fa-pen"></i> Write a Review
+        </a>
+      {% endif %}
+    </div>
+
+    <div class="reviews-list">
+      {% for review in reviews %}
+        <div class="review-card">
+          <div class="review-header">
+            <div class="reviewer-info">
+              <span class="reviewer-name">{{ review.buyer.username }}</span>
+              <div class="review-rating">
+                {% for i in "12345"|make_list %}
+                  <i class="fas fa-star {% if forloop.counter <= review.rating %}active{% endif %}"></i>
+                {% endfor %}
+              </div>
+            </div>
+            <span class="review-date">{{ review.created_at|date:"M d, Y" }}</span>
+          </div>
+          <p class="review-comment">{{ review.comment }}</p>
+          {% if review.image %}
+            <div class="review-image">
+              <img src="{{ review.image.url }}" alt="Review image" class="img-fluid">
+            </div>
+          {% endif %}
+        </div>
+      {% empty %}
+        <div class="no-reviews">
+          <i class="fas fa-comment-slash"></i>
+          <p>No reviews yet. Be the first to review this product!</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<style>
+  .reviews-container {
+    max-width: 1000px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .product-header {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 3rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .product-image {
+    width: 200px;
+    height: 200px;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .product-info {
+    flex: 1;
+  }
+
+  .product-info h2 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-green);
+    font-size: 2rem;
+  }
+
+  .farmer-name, .product-location {
+    color: var(--dark-black);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.1rem;
+  }
+
+  .average-rating {
+    margin-top: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .average-rating .stars {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .average-rating .fa-star {
+    font-size: 1.5rem;
+    color: #ddd;
+  }
+
+  .average-rating .fa-star.active {
+    color: #ffc107;
+  }
+
+  .rating-text {
+    font-size: 1.2rem;
+    color: var(--dark-black);
+    font-weight: 500;
+  }
+
+  .reviews-section {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    padding: 2rem;
+  }
+
+  .reviews-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .reviews-header h3 {
+    margin: 0;
+    color: var(--dark-black);
+    font-size: 1.5rem;
+  }
+
+  .reviews-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2rem;
+  }
+
+  .review-card {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: transform 0.3s ease;
+  }
+
+  .review-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+  }
+
+  .reviewer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .reviewer-name {
+    font-weight: 600;
+    color: var(--dark-black);
+  }
+
+  .review-rating {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .review-rating .fa-star {
+    color: #ddd;
+    font-size: 1rem;
+  }
+
+  .review-rating .fa-star.active {
+    color: #ffc107;
+  }
+
+  .review-date {
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .review-comment {
+    color: var(--dark-black);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+  }
+
+  .review-image {
+    margin-top: 1rem;
+  }
+
+  .review-image img {
+    max-width: 300px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .no-reviews {
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+  }
+
+  .no-reviews i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    color: #ddd;
+  }
+
+  .btn-primary {
+    background: var(--primary-green);
+    color: white;
+    border: none;
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .btn-primary:hover {
+    background: var(--secondary-green);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+  }
+
+  .rating-stars {
+    display: flex;
+    gap: 0.15rem;
+  }
+
+  .rating-stars .fa-star {
+    color: #ddd;
+    font-size: 1rem;
+  }
+
+  .rating-stars .fa-star.active {
+    color: #ffc107;
+  }
+
+  .average-rating {
+    font-weight: 600;
+    color: var(--dark-black);
+    font-size: 1rem;
+  }
+
+  .review-count {
+    color: #666;
+    font-size: 0.9rem;
+  }
+</style>
+{% endblock %} 

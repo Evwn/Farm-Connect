@@ -1,4 +1,7 @@
-{% extends 'core/dashboard_base.html' %} {% block content %}
+{% extends 'core/dashboard_base.html' %}
+{% load core_extras %}
+
+{% block content %}
 <!-- Add Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 
@@ -21,6 +24,7 @@
             <th>Market Insights</th>
             <th>Stock</th>
             <th>Category</th>
+            <th>Reviews</th>
             <th>Image</th>
             <th>Actions</th>
           </tr>
@@ -69,6 +73,23 @@
             </td>
             <td>{{ product.stock_quantity }} kg</td>
             <td>{{ product.category }}</td>
+            <td>
+              <a href="{% url 'product_reviews' product.id %}" class="reviews-link">
+                <div class="d-flex align-items-center gap-2">
+                  <div class="rating-stars">
+                    {% with avg_rating=product.reviews.all|avg_rating %}
+                      {% for i in "12345"|make_list %}
+                        <i class="fas fa-star {% if forloop.counter <= avg_rating %}active{% endif %}"></i>
+                      {% endfor %}
+                    {% endwith %}
+                  </div>
+                  <div class="reviews-info">
+                    <span class="average-rating">{{ product.reviews.all|avg_rating|floatformat:1 }}</span>
+                    <small class="reviews-count">({{ product.reviews.count }} reviews)</small>
+                  </div>
+                </div>
+              </a>
+            </td>
             <td>
               {% if product.image %}
               <img
@@ -229,6 +250,47 @@
 .insight-action {
   font-weight: 500;
   color: #0d6efd;
+}
+
+.reviews-link {
+  text-decoration: none;
+  color: inherit;
+  transition: all 0.3s ease;
+}
+
+.reviews-link:hover {
+  color: var(--primary-green);
+}
+
+.rating-stars {
+  display: flex;
+  gap: 0.15rem;
+}
+
+.rating-stars .fa-star {
+  color: #ddd;
+  font-size: 0.8rem;
+}
+
+.rating-stars .fa-star.active {
+  color: #ffc107;
+}
+
+.reviews-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.average-rating {
+  font-weight: 600;
+  color: var(--dark-black);
+  font-size: 0.9rem;
+}
+
+.reviews-count {
+  color: #666;
+  font-size: 0.8rem;
 }
 </style>
 

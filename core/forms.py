@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import CustomUser, Product, Farm, Order, SellerVerification
+from .models import CustomUser, Product, Farm, Order, SellerVerification, Review
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
@@ -61,4 +61,14 @@ class SellerVerificationForm(forms.ModelForm):
             'business_name': forms.TextInput(attrs={'class': 'form-control'}),
             'business_address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
             'business_location': forms.TextInput(attrs={'class': 'form-control'}),
+        }
+
+class ReviewForm(forms.ModelForm):
+    class Meta:
+        model = Review
+        fields = ['rating', 'comment', 'image']
+        widgets = {
+            'rating': forms.NumberInput(attrs={'type': 'range', 'min': '1', 'max': '5', 'step': '1', 'class': 'form-range'}),
+            'comment': forms.Textarea(attrs={'class': 'form-control', 'rows': '3', 'placeholder': 'Share your experience with this product...'}),
+            'image': forms.FileInput(attrs={'class': 'form-control', 'accept': 'image/*'}),
         }

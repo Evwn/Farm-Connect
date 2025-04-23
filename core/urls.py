@@ -66,4 +66,7 @@ urlpatterns = [
     path('admin/verifications/', views.admin_verifications, name='admin_verifications'),
     path('admin/verify-seller/<int:verification_id>/', views.admin_verify_seller, name='admin_verify_seller'),
     path('admin/reject-seller/<int:verification_id>/', views.admin_reject_seller, name='admin_reject_seller'),
+
+    path('submit_review/<int:product_id>/', views.submit_review, name='submit_review'),
+    path('product_reviews/<int:product_id>/', views.product_reviews, name='product_reviews'),
 ]

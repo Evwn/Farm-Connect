@@ -2,6 +2,7 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.conf import settings
 import uuid
+from django.db.models import Avg
 
 class CustomUser(AbstractUser):
     ROLE_CHOICES = (
@@ -29,9 +30,17 @@ class Product(models.Model):
     is_organic = models.BooleanField(default=False)
     image = models.ImageField(upload_to='product_images/', null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    average_rating = models.DecimalField(max_digits=3, decimal_places=2, null=True, blank=True)
+    total_ratings = models.PositiveIntegerField(default=0)
 
     def __str__(self):
         return f"{self.name} by {self.farmer.username}"
+
+    def update_rating(self):
+        reviews = self.reviews.all()
+        self.average_rating = reviews.aggregate(avg_rating=Avg('rating'))['avg_rating']
+        self.total_ratings = reviews.count()
+        self.save()
 
 class Order(models.Model):
     STATUS_CHOICES = [
@@ -192,3 +201,18 @@ class SellerVerification(models.Model):
     class Meta:
         verbose_name = 'Seller Verification'
         verbose_name_plural = 'Seller Verifications'
+
+class Review(models.Model):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
+    buyer = models.ForeignKey(CustomUser, on_delete=models.CASCADE, related_name='reviews')
+    rating = models.IntegerField(choices=[(i, i) for i in range(1, 6)])
+    comment = models.TextField()
+    image = models.ImageField(upload_to='review_images/', null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Review by {self.buyer.username} for {self.product.name}"

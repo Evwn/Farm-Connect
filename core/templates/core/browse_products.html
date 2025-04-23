@@ -1,7 +1,4 @@
-{% extends 'core/dashboard_base.html' %} {% load static %} {% block content %}
-<!-- Include the price prediction component -->
-{% include 'core/price_prediction.html' %}
-
+{% extends 'core/dashboard_base.html' %} {% load static %} {% load product_filters %} {% block content %}
 <!-- Add Chart.js -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
 
@@ -162,6 +159,88 @@
               <i class="fas fa-box-open me-1"></i>
               Available:
               <span class="stock-display">{{ product.stock_quantity }}</span> kg
+            </div>
+            <div class="meta-item">
+              <i class="fas fa-star me-1"></i>
+              Rating: 
+              <span class="product-rating">
+                {% if product.average_rating %}
+                  {{ product.average_rating|floatformat:1 }}/5.0
+                  ({{ product.total_ratings }} reviews)
+                {% else %}
+                  No reviews yet
+                {% endif %}
+              </span>
+            </div>
+          </div>
+
+          <!-- Reviews Section -->
+          <div class="product-reviews">
+            <button class="btn btn-outline-primary btn-sm w-100 reviews-toggle" 
+                    type="button" 
+                    data-bs-toggle="collapse" 
+                    data-bs-target="#reviews{{ product.id }}" 
+                    aria-expanded="false" 
+                    aria-controls="reviews{{ product.id }}">
+              <div class="d-flex align-items-center justify-content-between w-100">
+                <div class="d-flex align-items-center gap-2">
+                  <i class="fas fa-star me-1"></i>
+                  <span>Reviews ({{ product.reviews.count }})</span>
+                </div>
+                {% if product.reviews.count > 0 %}
+                  {% with avg_rating=product.reviews.all|avg_rating %}
+                    <div class="d-flex align-items-center gap-2">
+                      <span class="average-rating">{{ avg_rating|floatformat:1 }}</span>
+                      <div class="rating-stars">
+                        {% for i in "12345"|make_list %}
+                          <i class="fas fa-star {% if forloop.counter <= avg_rating %}active{% endif %}"></i>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endwith %}
+                {% else %}
+                  <span class="text-muted">No ratings</span>
+                {% endif %}
+              </div>
+            </button>
+            
+            <div class="collapse" id="reviews{{ product.id }}">
+              {% if product.reviews.all %}
+                <div class="reviews-list">
+                  {% for review in product.reviews.all|slice:":2" %}
+                    <div class="review-item">
+                      <div class="review-header">
+                        <div class="reviewer-info">
+                          <span class="reviewer-name">{{ review.buyer.username }}</span>
+                          <div class="review-rating">
+                            {% for i in "12345"|make_list %}
+                              <i class="fas fa-star {% if forloop.counter <= review.rating %}active{% endif %}"></i>
+                            {% endfor %}
+                          </div>
+                        </div>
+                        <span class="review-date">{{ review.created_at|date:"M d, Y" }}</span>
+                      </div>
+                      <p class="review-comment">{{ review.comment }}</p>
+                      {% if review.image %}
+                        <div class="review-image">
+                          <img src="{{ review.image.url }}" alt="Review image" class="img-fluid">
+                        </div>
+                      {% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+
+                {% if product.reviews.count > 2 %}
+                  <div class="view-more-reviews">
+                    <div class="d-flex align-items-center justify-content-center">...</div>
+                    <a href="{% url 'product_reviews' product.id %}" class="btn btn-outline-primary">
+                      <i class="fas fa-comments"></i> Remaining {{ product.reviews.count|add:"-2" }} Reviews
+                    </a>
+                  </div>
+                {% endif %}
+              {% else %}
+                <p class="no-reviews">No reviews yet. Be the first to review!</p>
+              {% endif %}
             </div>
           </div>
 
@@ -469,6 +548,153 @@
   .insight-action {
     color: var(--primary-green);
     font-weight: 500;
+  }
+
+  /* Reviews Section Styles */
+  .product-reviews {
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid #eee;
+  }
+
+  .reviews-toggle {
+    border: none;
+    background-color: transparent;
+    color: var(--secondary-green);
+    transition: var(--transition);
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
+  }
+
+  .reviews-toggle:hover {
+    background-color: var(--accent-mint);
+    color: var(--secondary-green);
+  }
+
+  .reviews-toggle[aria-expanded="true"] {
+    background-color: var(--accent-mint);
+  }
+
+  .rating-stars {
+    display: flex;
+    gap: 0.15rem;
+  }
+
+  .average-rating {
+    font-weight: 600;
+    color: var(--dark-black);
+    font-size: 0.9rem;
+    margin-right: 0.5rem;
+  }
+
+  .rating-stars .fa-star {
+    color: #ddd;
+    font-size: 0.8rem;
+  }
+
+  .rating-stars .fa-star.active {
+    color: #ffc107;
+  }
+
+  .reviews-list {
+    margin-top: 1rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .review-item {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.25rem;
+    transition: transform 0.3s ease;
+  }
+
+  .review-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+  }
+
+  .review-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.75rem;
+  }
+
+  .reviewer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .reviewer-name {
+    font-weight: 600;
+    color: var(--dark-black);
+  }
+
+  .review-rating {
+    display: flex;
+    gap: 0.25rem;
+  }
+
+  .review-rating .fa-star {
+    color: #ddd;
+    font-size: 1rem;
+  }
+
+  .review-rating .fa-star.active {
+    color: #ffc107;
+  }
+
+  .review-date {
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .review-comment {
+    color: var(--dark-black);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+  }
+
+  .review-image {
+    margin-top: 1rem;
+  }
+
+  .review-image img {
+    max-width: 200px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+
+  .view-more-reviews {
+    margin-top: 1.5rem;
+    text-align: center;
+  }
+
+  .view-more-reviews .btn {
+    padding: 0.75rem 1.5rem;
+    border-radius: 8px;
+    font-weight: 500;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    transition: all 0.3s ease;
+  }
+
+  .view-more-reviews .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+  }
+
+  .no-reviews {
+    color: #666;
+    font-style: italic;
+    text-align: center;
+    padding: 1rem;
+    background: #f8f9fa;
+    border-radius: 8px;
   }
 </style>
 
@@ -883,6 +1109,28 @@ document.addEventListener('DOMContentLoaded', function() {
             });
           });
         }
+      });
+    });
+  });
+
+  // Star rating functionality
+  document.querySelectorAll('.star-rating').forEach(ratingContainer => {
+    const stars = ratingContainer.querySelectorAll('.star');
+    const ratingInput = ratingContainer.parentElement.querySelector('#rating-input');
+
+    stars.forEach(star => {
+      star.addEventListener('click', () => {
+        const rating = star.dataset.rating;
+        ratingInput.value = rating;
+        
+        // Update star display
+        stars.forEach(s => {
+          if (s.dataset.rating <= rating) {
+            s.classList.add('active');
+          } else {
+            s.classList.remove('active');
+          }
+        });
       });
     });
   });

@@ -1,0 +1,374 @@
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+
+{% block content %}
+<div class="dashboard-header">
+  <h1 class="dashboard-title">
+    Review Product <i class="fas fa-star"></i>
+  </h1>
+  <nav aria-label="breadcrumb">
+    <ol class="breadcrumb">
+      <li class="breadcrumb-item">
+        <a href="{% url 'dashboard' %}">Dashboard</a>
+      </li>
+      <li class="breadcrumb-item">
+        <a href="{% url 'order_history' %}">Order History</a>
+      </li>
+      <li class="breadcrumb-item active" aria-current="page">
+        Review Product
+      </li>
+    </ol>
+  </nav>
+</div>
+
+<div class="review-container">
+  <div class="product-review-card">
+    <div class="product-header">
+      <img
+        src="{% if product.image %}{{ product.image.url }}{% else %}{% static 'images/default-product.png' %}{% endif %}"
+        alt="{{ product.name }}"
+        class="product-image"
+      />
+      <div class="product-info">
+        <h3>{{ product.name }}</h3>
+        <p class="farmer-name">
+          <i class="fas fa-user"></i>
+          {{ product.farmer.username }}
+        </p>
+        <p class="product-location">
+          <i class="fas fa-map-marker-alt"></i>
+          {{ product.location }}
+        </p>
+      </div>
+    </div>
+    
+    <form method="post" enctype="multipart/form-data" class="review-form">
+      {% csrf_token %}
+      
+      <div class="form-group">
+        <label class="form-label">Your Rating</label>
+        <div class="star-rating">
+          {% for i in "12345"|make_list %}
+            <i class="fas fa-star star {% if forloop.first %}active{% endif %}" data-rating="{{ i }}"></i>
+          {% endfor %}
+        </div>
+        <input type="hidden" name="rating" id="rating-input" value="1" required>
+      </div>
+      
+      <div class="form-group">
+        <label for="comment" class="form-label">Your Review</label>
+        <textarea
+          id="comment"
+          name="comment"
+          class="form-control"
+          rows="4"
+          placeholder="Share your experience with this product..."
+          required
+        >Good product</textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="image" class="form-label">Upload Image (Optional)</label>
+        <div class="image-upload-container">
+          <input
+            type="file"
+            id="image"
+            name="image"
+            class="form-control"
+            accept="image/*"
+            style="display: none;"
+          >
+          <div class="image-preview" id="image-preview" onclick="document.getElementById('image').click()">
+            <i class="fas fa-image"></i>
+            <span>Click to upload or drag and drop</span>
+          </div>
+        </div>
+        <small class="form-text text-muted">
+          Upload a photo of the product (max 5MB)
+        </small>
+      </div>
+
+      <div class="form-actions">
+        <button type="submit" class="btn btn-primary">
+          <i class="fas fa-paper-plane"></i> Submit Review
+        </button>
+        <a href="{% url 'order_history' %}" class="btn btn-outline-secondary">
+          <i class="fas fa-times"></i> Cancel
+        </a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<style>
+  .review-container {
+    max-width: 800px;
+    margin: 2rem auto;
+    padding: 0 1rem;
+  }
+
+  .product-review-card {
+    background: white;
+    border-radius: 16px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+    padding: 2.5rem;
+    transition: transform 0.3s ease;
+  }
+
+  .product-review-card:hover {
+    transform: translateY(-5px);
+  }
+
+  .product-header {
+    display: flex;
+    gap: 2rem;
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid #eee;
+  }
+
+  .product-image {
+    width: 150px;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 12px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  }
+
+  .product-info {
+    flex: 1;
+  }
+
+  .product-info h3 {
+    margin: 0 0 1rem 0;
+    color: var(--primary-green);
+    font-size: 1.8rem;
+  }
+
+  .farmer-name, .product-location {
+    color: var(--dark-black);
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.1rem;
+  }
+
+  .star-rating {
+    display: flex;
+    gap: 0.75rem;
+    margin: 1rem 0;
+  }
+
+  .star-rating .star {
+    font-size: 2.5rem;
+    color: #ddd;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .star-rating .star:hover,
+  .star-rating .star.active {
+    color: #ffc107;
+    transform: scale(1.1);
+  }
+
+  .form-group {
+    margin-bottom: 2rem;
+  }
+
+  .form-label {
+    display: block;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    color: var(--dark-black);
+    font-size: 1.1rem;
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 1rem;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+  }
+
+  .form-control:focus {
+    border-color: var(--primary-green);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(40, 167, 69, 0.1);
+  }
+
+  .image-upload-container {
+    position: relative;
+    margin-bottom: 1rem;
+    height: 200px;
+  }
+
+  .image-preview {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: #f8f9fa;
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+
+  .image-preview:hover {
+    border-color: var(--primary-green);
+    background: #f0fff4;
+  }
+
+  .image-preview i {
+    font-size: 2.5rem;
+    color: #ccc;
+    margin-bottom: 0.5rem;
+  }
+
+  .image-preview span {
+    color: #666;
+    font-size: 0.9rem;
+  }
+
+  .image-preview img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+
+  .form-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2.5rem;
+  }
+
+  .btn {
+    padding: 1rem 2rem;
+    border-radius: 12px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.75rem;
+    transition: all 0.3s ease;
+    font-size: 1.1rem;
+  }
+
+  .btn-primary {
+    background: var(--primary-green);
+    color: white;
+    border: none;
+  }
+
+  .btn-primary:hover {
+    background: var(--secondary-green);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 15px rgba(40, 167, 69, 0.2);
+  }
+
+  .btn-outline-secondary {
+    border: 2px solid #ddd;
+    color: var(--dark-black);
+  }
+
+  .btn-outline-secondary:hover {
+    background: #f8f9fa;
+    border-color: #ccc;
+    transform: translateY(-2px);
+  }
+</style>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    const stars = document.querySelectorAll('.star');
+    const ratingInput = document.getElementById('rating-input');
+    const imageInput = document.getElementById('image');
+    const imagePreview = document.getElementById('image-preview');
+
+    // Function to update star colors
+    function updateStars(rating) {
+      stars.forEach((star, index) => {
+        if (index < rating) {
+          star.classList.add('active');
+          star.style.color = '#ffc107';
+        } else {
+          star.classList.remove('active');
+          star.style.color = '#ddd';
+        }
+      });
+    }
+
+    // Set initial rating to 1 star
+    ratingInput.value = '1';
+    updateStars(1);
+
+    // Handle star clicks
+    stars.forEach((star, index) => {
+      star.addEventListener('click', function() {
+        const rating = index + 1;
+        ratingInput.value = rating;
+        updateStars(rating);
+      });
+
+      // Add hover effect
+      star.addEventListener('mouseover', function() {
+        const rating = index + 1;
+        updateStars(rating);
+      });
+
+      star.addEventListener('mouseout', function() {
+        const currentRating = parseInt(ratingInput.value);
+        updateStars(currentRating);
+      });
+    });
+
+    // Handle image preview
+    imageInput.addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          alert('Image size should be less than 5MB');
+          return;
+        }
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        }
+        reader.readAsDataURL(file);
+      }
+    });
+
+    // Handle drag and drop
+    imagePreview.addEventListener('dragover', function(e) {
+      e.preventDefault();
+      this.style.borderColor = 'var(--primary-green)';
+    });
+
+    imagePreview.addEventListener('drop', function(e) {
+      e.preventDefault();
+      const file = e.dataTransfer.files[0];
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) { // 5MB limit
+          alert('Image size should be less than 5MB');
+          return;
+        }
+        imageInput.files = e.dataTransfer.files;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+        }
+        reader.readAsDataURL(file);
+      }
+    });
+  });
+</script>
+{% endblock %} 

@@ -4,14 +4,14 @@ from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required, user_passes_test
 from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-from .forms import CustomUserCreationForm, ProductForm, FarmForm, SellerVerificationForm
+from .forms import CustomUserCreationForm, ProductForm, FarmForm, SellerVerificationForm, ReviewForm
 from django.db.models import Q, Sum  # Import Q and Sum for complex queries and aggregations
 from django.core.paginator import Paginator  # Import Paginator
 from django.http import JsonResponse, HttpResponse
 import json  # Import json for handling JSON data
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt  # Import csrf_exempt
-from .models import Product, Farm, Order, EscrowTransaction, DisputeResponse, DisputeMessage, DisputeTimeline, SellerVerification
+from .models import Product, Farm, Order, EscrowTransaction, DisputeResponse, DisputeMessage, DisputeTimeline, SellerVerification, Review
 from django.utils import timezone
 from datetime import timedelta
 from django.urls import reverse
@@ -1245,3 +1245,56 @@ def admin_reject_seller(request, verification_id):
         messages.error(request, 'Invalid request method.')
     
     return redirect('admin_verifications')
+
+@login_required
+def submit_review(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    
+    # Check if user has purchased this product
+    has_purchased = Order.objects.filter(
+        buyer=request.user,
+        product=product,
+        status='Completed'
+    ).exists()
+    
+    if not has_purchased:
+        messages.error(request, "You can only review products you have purchased.")
+        return redirect('order_history')
+    
+    if request.method == 'POST':
+        rating = request.POST.get('rating', '1')  # Default to 1 if not provided
+        comment = request.POST.get('comment', 'Good product')  # Default comment if not provided
+        
+        # Handle image upload
+        image = None
+        if 'image' in request.FILES:
+            image = request.FILES['image']
+        
+        review = Review.objects.create(
+            buyer=request.user,
+            product=product,
+            rating=rating,
+            comment=comment,
+            image=image
+        )
+        
+        messages.success(request, "Thank you for your review!")
+        return redirect('order_history')
+    
+    # For GET requests, show the form with default values
+    return render(request, 'core/submit_review.html', {
+        'product': product,
+        'default_rating': 1,
+        'default_comment': 'Good product'
+    })
+
+@login_required
+def product_reviews(request, product_id):
+    product = get_object_or_404(Product, id=product_id)
+    reviews = product.reviews.all().order_by('-created_at')
+    
+    context = {
+        'product': product,
+        'reviews': reviews,
+    }
+    return render(request, 'core/product_reviews.html', context)

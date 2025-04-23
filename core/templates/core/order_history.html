@@ -196,6 +196,12 @@
         >
           <i class="fas fa-redo"></i> Re-order
         </button>
+        <a
+          href="{% url 'submit_review' order.product.id %}"
+          class="btn btn-primary"
+        >
+          <i class="fas fa-star"></i> Review
+        </a>
         {% endif %}
         {% if order.escrow_transaction and order.escrow_transaction.status == 'Disputed' %}
         <a
