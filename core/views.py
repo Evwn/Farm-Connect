@@ -2,19 +2,24 @@ from decimal import Decimal  # Add this at the top
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, authenticate
 from django.contrib.auth.decorators import login_required, user_passes_test
+from django.contrib.admin.views.decorators import staff_member_required
 from django.contrib import messages
-from .forms import CustomUserCreationForm, ProductForm, FarmForm
+from .forms import CustomUserCreationForm, ProductForm, FarmForm, SellerVerificationForm
 from django.db.models import Q, Sum  # Import Q and Sum for complex queries and aggregations
 from django.core.paginator import Paginator  # Import Paginator
 from django.http import JsonResponse, HttpResponse
 import json  # Import json for handling JSON data
 from django.views.decorators.http import require_POST
 from django.views.decorators.csrf import csrf_exempt  # Import csrf_exempt
-from .models import Product, Farm, Order, EscrowTransaction, DisputeResponse, DisputeMessage, DisputeTimeline
+from .models import Product, Farm, Order, EscrowTransaction, DisputeResponse, DisputeMessage, DisputeTimeline, SellerVerification
 from django.utils import timezone
 from datetime import timedelta
 from django.urls import reverse
 from .payment_gateways import PayPalGateway, PaystackGateway, SkrillGateway
+from django.conf import settings
+import logging
+
+logger = logging.getLogger(__name__)
 
 def is_admin(user):
     return user.is_authenticated and user.is_staff
@@ -247,7 +252,6 @@ def orders(request):
     }
     return render(request, 'core/orders.html', context)
 
-@login_required
 @require_POST
 def update_order_status(request, order_id):
     order = get_object_or_404(Order, id=order_id, product__farmer=request.user)
@@ -255,10 +259,23 @@ def update_order_status(request, order_id):
     
     if new_status in dict(Order.STATUS_CHOICES):
         order.status = new_status
+        # Set completed_at timestamp when status is changed to Completed
+        if new_status == 'Completed':
+            order.completed_at = timezone.now()
+        # Handle refund when order is cancelled
+        elif new_status == 'Cancelled' and order.escrow_transaction:
+            order.escrow_transaction.status = 'Refunded'
+            order.escrow_transaction.save()
+            order.payment_status = 'Refunded'
+            order.save()
+            messages.success(request, f"Order #{order.id} cancelled and payment refunded")
+            return JsonResponse({'success': True})
         order.save()
         messages.success(request, f"Order #{order.id} status updated to {new_status}")
+        return JsonResponse({'success': True})
     else:
         messages.error(request, "Invalid status update")
+        return JsonResponse({'success': False, 'message': 'Invalid status update'})
     
     return redirect('orders')
 
@@ -411,16 +428,21 @@ def escrow_payment(request, order_id):
         if payment_method == 'paypal':
             # Initialize PayPal payment
             paypal = PayPalGateway()
-            return_url = request.build_absolute_uri(reverse('paypal_success', kwargs={'order_id': order.id}))
-            cancel_url = request.build_absolute_uri(reverse('paypal_cancel', kwargs={'order_id': order.id}))
-            
-            result = paypal.create_payment(order, return_url, cancel_url)
+            result = paypal.create_payment(order)
+            logger.info(f"PayPal payment creation result: {result}")
             
             if result['success']:
-                # Store payment ID in session for later use
-                request.session['paypal_payment_id'] = result['payment_id']
-                return redirect(result['approval_url'])
+                # Store PayPal order ID in session
+                paypal_order_id = result.get('payment_id')
+                if paypal_order_id:
+                    request.session['paypal_order_id'] = paypal_order_id
+                    logger.info(f"Stored PayPal order ID in session: {paypal_order_id}")
+                    return redirect(result['approval_url'])
+                else:
+                    logger.error("No PayPal order ID returned")
+                    messages.error(request, "Error creating PayPal payment. Please try again.")
             else:
+                logger.error(f"PayPal payment creation failed: {result.get('error', 'Unknown error')}")
                 messages.error(request, f"PayPal Error: {result.get('error', 'Unknown error')}")
         
         elif payment_method == 'paystack':
@@ -461,49 +483,56 @@ def escrow_payment(request, order_id):
 
 @login_required
 def paypal_success(request, order_id):
-    order = get_object_or_404(Order, id=order_id, buyer=request.user)
-    payment_id = request.GET.get('paymentId')
-    payer_id = request.GET.get('PayerID')
-    
-    # Verify payment ID matches what we stored
-    if payment_id != request.session.get('paypal_payment_id'):
-        messages.error(request, "Payment verification failed")
-        return redirect('order_detail', order_id=order.id)
-    
-    # Execute the payment
-    paypal = PayPalGateway()
-    result = paypal.execute_payment(payment_id, payer_id)
-    
-    if result['success']:
-        # Update escrow status
-        escrow = EscrowTransaction.objects.get(order=order)
-        escrow.status = 'Funded'
-        escrow.payment_reference = result['transaction_id']
-        escrow.save()
+    """Handle successful PayPal payment"""
+    try:
+        order = Order.objects.get(id=order_id)
+        if order.buyer != request.user:
+            messages.error(request, "You are not authorized to view this order.")
+            return redirect('dashboard')
         
-        # Update order payment status
-        order.payment_status = 'In Escrow'
-        order.save()
+        # Get the token and PayerID from the request
+        token = request.GET.get('token')
+        payer_id = request.GET.get('PayerID')
         
-        messages.success(request, 'Payment successful! Your funds are now in escrow.')
+        if not token or not payer_id:
+            messages.error(request, "Invalid PayPal response.")
+            return redirect('order_detail', order_id=order.id)
         
-        # Render the success template
-        return render(request, 'core/paypal_success.html', {
-            'order': order,
-            'transaction_id': result['transaction_id']
-        })
-    else:
-        messages.error(request, f"Payment failed: {result.get('error', 'Unknown error')}")
-        return redirect('order_detail', order_id=order.id)
-    
-    # Clear session data
-    if 'paypal_payment_id' in request.session:
-        del request.session['paypal_payment_id']
+        # Execute the payment
+        paypal = PayPalGateway()
+        result = paypal.execute_payment(token)
+        
+        if result['success']:
+            # Update order and escrow status
+            order.payment_status = 'In Escrow'
+            order.save()
+            
+            escrow = order.escrow_transaction
+            escrow.status = 'Funded'
+            escrow.save()
+            
+            messages.success(request, "Payment successful! Your order is now in escrow.")
+            return redirect('order_detail', order_id=order.id)
+        else:
+            messages.error(request, f"Payment execution failed: {result.get('error', 'Unknown error')}")
+            return redirect('order_detail', order_id=order.id)
+            
+    except Order.DoesNotExist:
+        messages.error(request, "Order not found.")
+        return redirect('dashboard')
+    except Exception as e:
+        logger.error(f"Error processing PayPal success: {str(e)}")
+        messages.error(request, "An error occurred while processing your payment.")
+        return redirect('dashboard')
 
 @login_required
 def paypal_cancel(request, order_id):
     order = get_object_or_404(Order, id=order_id, buyer=request.user)
     messages.warning(request, "PayPal payment was cancelled")
+    
+    # Clear session data
+    if 'paypal_order_id' in request.session:
+        del request.session['paypal_order_id']
     
     # Render the cancel template
     return render(request, 'core/paypal_cancel.html', {
@@ -526,7 +555,7 @@ def paystack_callback(request, order_id):
     
     if result['success']:
         # Update escrow status
-        escrow = EscrowTransaction.objects.get(order=order)
+        escrow = order.escrow_transaction
         escrow.status = 'Funded'
         escrow.payment_reference = result['transaction_id']
         escrow.save()
@@ -534,7 +563,7 @@ def paystack_callback(request, order_id):
         # Update order payment status
         order.payment_status = 'In Escrow'
         order.save()
-        
+
         messages.success(request, 'Payment successful! Your funds are now in escrow.')
     else:
         messages.error(request, f"Payment failed: {result.get('error', 'Unknown error')}")
@@ -558,7 +587,7 @@ def skrill_status(request):
             order = get_object_or_404(Order, id=order_id)
             
             # Update escrow status
-            escrow = EscrowTransaction.objects.get(order=order)
+            escrow = order.escrow_transaction
             escrow.status = 'Funded'
             escrow.payment_reference = result['transaction_id']
             escrow.save()
@@ -592,7 +621,7 @@ def release_escrow(request, order_id):
         
         order.payment_status = 'Released'
         order.save()
-        
+
         messages.success(request, 'Escrow funds have been released to the farmer.')
     else:
         messages.error(request, 'Cannot release escrow funds. Order must be completed first.')
@@ -800,7 +829,7 @@ def order_detail(request, order_id):
     
     # Try to get the escrow transaction, but don't raise 404 if it doesn't exist
     try:
-        escrow = EscrowTransaction.objects.get(order=order)
+        escrow = order.escrow_transaction
     except EscrowTransaction.DoesNotExist:
         # Create a new escrow transaction if one doesn't exist
         escrow = EscrowTransaction.objects.create(
@@ -835,7 +864,7 @@ def my_purchases(request):
     orders = Order.objects.filter(
         buyer=request.user,
         payment_status__in=['Released', 'Refunded']
-    ).select_related('product', 'escrow').order_by('-created_at')
+    ).select_related('product', 'escrow_transaction').order_by('-created_at')
     
     # Debug information to help troubleshoot
     print(f"Total orders with released/refunded payments: {orders.count()}")
@@ -891,30 +920,74 @@ def reorder(request, order_id):
 
 @login_required
 @require_POST
+def auto_release_escrow(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    
+    # Check if order is in correct state for auto-release
+    if order.status != 'Completed' or order.payment_status != 'In Escrow':
+        return JsonResponse({
+            'success': False,
+            'error': 'Order is not in a valid state for auto-release'
+        })
+    
+    # Check if 12 hours have passed since completion
+    if not order.completed_at:
+        return JsonResponse({
+            'success': False,
+            'error': 'Order completion time not set'
+        })
+    
+    time_since_completion = timezone.now() - order.completed_at
+    if time_since_completion.total_seconds() < 12 * 60 * 60:
+        return JsonResponse({
+            'success': False,
+            'error': '12 hours have not passed since order completion'
+        })
+    
+    # Release the escrow
+    try:
+        escrow = order.escrow_transaction
+        escrow.status = 'Released'
+        escrow.release_date = timezone.now()
+        escrow.save()
+        
+        order.payment_status = 'Released'
+        order.save()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
+
+@login_required
+@require_POST
 def confirm_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, buyer=request.user)
     
-    if order.status != 'Completed' or not order.escrow or order.escrow.status != 'Funded':
+    if order.status != 'Completed' or not order.escrow_transaction or order.escrow_transaction.status != 'Funded':
         return JsonResponse({
             'success': False,
             'error': 'Order is not in a valid state for confirmation'
         })
     
-    # Update escrow status to Waiting_Confirmation
-    order.escrow.status = 'Waiting_Confirmation'
-    order.escrow.confirmation_time = timezone.now()
-    order.escrow.save()
-    
-    # Schedule the release after 24 hours
-    release_time = order.escrow.confirmation_time + timedelta(hours=24)
-    order.escrow.scheduled_release_time = release_time
-    order.escrow.save()
-    
-    # Update order payment status to reflect the escrow state
-    order.payment_status = 'In Escrow'
-    order.save()
-    
-    return JsonResponse({'success': True})
+    try:
+        # Release the escrow immediately
+        escrow = order.escrow_transaction
+        escrow.status = 'Released'
+        escrow.release_date = timezone.now()
+        escrow.save()
+        
+        order.payment_status = 'Released'
+        order.save()
+        
+        return JsonResponse({'success': True})
+    except Exception as e:
+        return JsonResponse({
+            'success': False,
+            'error': str(e)
+        })
 
 @login_required
 def check_pending_releases(request):
@@ -923,9 +996,10 @@ def check_pending_releases(request):
     
     # Find all escrow transactions that are ready for release
     ready_for_release = EscrowTransaction.objects.filter(
-        status='Waiting_Confirmation',
-        confirmation_time__isnull=False,
-        scheduled_release_time__lte=current_time
+        status='Funded',
+        order__status='Completed',
+        order__completed_at__isnull=False,
+        order__completed_at__lte=current_time - timezone.timedelta(hours=12)
     )
     
     for escrow in ready_for_release:
@@ -940,3 +1014,234 @@ def check_pending_releases(request):
         order.save()
     
     return JsonResponse({'success': True, 'released_count': ready_for_release.count()})
+
+@csrf_exempt
+@require_POST
+def paypal_webhook(request):
+    """Handle PayPal webhook notifications"""
+    try:
+        # Get the webhook data
+        webhook_data = json.loads(request.body)
+        logger.info(f"Received PayPal webhook: {webhook_data}")
+        
+        # Verify webhook signature in live mode
+        if settings.PAYPAL_MODE == 'live':
+            paypal = PayPalGateway()
+            if not paypal.verify_webhook_signature(request):
+                logger.error("Invalid PayPal webhook signature")
+                return HttpResponse(status=400)
+        
+        # Extract event type and resource
+        event_type = webhook_data.get('event_type')
+        resource = webhook_data.get('resource', {})
+        
+        # Get order ID from custom_id
+        order_id = resource.get('custom_id')
+        if not order_id:
+            logger.error("No order ID found in webhook data")
+            return HttpResponse(status=400)
+        
+        # Get the order and escrow transaction
+        try:
+            order = Order.objects.get(id=order_id)
+            escrow = order.escrow_transaction
+            logger.info(f"Found order {order_id} and escrow transaction")
+        except (Order.DoesNotExist, EscrowTransaction.DoesNotExist) as e:
+            logger.error(f"Error finding order or escrow: {str(e)}")
+            return HttpResponse(status=404)
+        
+        # Process different event types
+        if event_type == 'PAYMENT.CAPTURE.COMPLETED':
+            # Update escrow status
+            escrow.status = 'Funded'
+            escrow.payment_reference = resource.get('id')
+            escrow.save()
+            logger.info(f"Updated escrow status to Funded for order {order_id}")
+            
+            # Update order payment status
+            order.payment_status = 'In Escrow'
+            order.save()
+            logger.info(f"Updated order payment status to In Escrow for order {order_id}")
+            
+            logger.info(f"Payment completed for order {order_id}")
+            
+        elif event_type == 'PAYMENT.CAPTURE.REFUNDED':
+            # Update escrow status
+            escrow.status = 'Refunded'
+            escrow.save()
+            logger.info(f"Updated escrow status to Refunded for order {order_id}")
+            
+            # Update order payment status
+            order.payment_status = 'Refunded'
+            order.save()
+            logger.info(f"Updated order payment status to Refunded for order {order_id}")
+            
+            logger.info(f"Payment refunded for order {order_id}")
+            
+        elif event_type == 'PAYMENT.CAPTURE.DENIED':
+            # Update escrow status
+            escrow.status = 'Failed'
+            escrow.save()
+            logger.info(f"Updated escrow status to Failed for order {order_id}")
+            
+            # Update order payment status
+            order.payment_status = 'Failed'
+            order.save()
+            logger.info(f"Updated order payment status to Failed for order {order_id}")
+            
+            logger.info(f"Payment denied for order {order_id}")
+        
+        return HttpResponse(status=200)
+        
+    except Exception as e:
+        logger.error(f"Error processing PayPal webhook: {str(e)}")
+        return HttpResponse(status=500)
+
+@login_required
+def seller_verification(request):
+    try:
+        verification = request.user.verification
+        if verification.status == 'Verified':
+            messages.info(request, 'Your account is already verified.')
+            return redirect('dashboard')
+    except SellerVerification.DoesNotExist:
+        verification = None
+
+    if request.method == 'POST':
+        form = SellerVerificationForm(request.POST, request.FILES, instance=verification)
+        if form.is_valid():
+            verification = form.save(commit=False)
+            verification.seller = request.user
+            verification.status = 'Pending'
+            verification.save()
+            messages.success(request, 'Your verification request has been submitted. We will review it shortly.')
+            return redirect('dashboard')
+    else:
+        form = SellerVerificationForm(instance=verification)
+
+    context = {
+        'form': form,
+        'verification': verification
+    }
+    return render(request, 'core/seller_verification.html', context)
+
+@login_required
+@user_passes_test(is_admin)
+def verify_seller(request, verification_id):
+    verification = get_object_or_404(SellerVerification, id=verification_id)
+    
+    if request.method == 'POST':
+        action = request.POST.get('action')
+        if action == 'verify':
+            verification.status = 'Verified'
+            verification.verified_by = request.user
+            verification.verification_date = timezone.now()
+            verification.save()
+            messages.success(request, f'Seller {verification.seller.username} has been verified.')
+        elif action == 'reject':
+            verification.status = 'Rejected'
+            verification.rejection_reason = request.POST.get('rejection_reason')
+            verification.save()
+            messages.warning(request, f'Seller {verification.seller.username} has been rejected.')
+        return redirect('pending_verifications')
+    
+    context = {
+        'verification': verification
+    }
+    return render(request, 'core/verify_seller.html', context)
+
+@login_required
+@user_passes_test(is_admin)
+def pending_verifications(request):
+    verifications = SellerVerification.objects.filter(status='Pending').order_by('-created_at')
+    context = {
+        'verifications': verifications
+    }
+    return render(request, 'core/pending_verifications.html', context)
+
+@login_required
+@user_passes_test(is_admin)
+def verification_list(request):
+    verifications = SellerVerification.objects.all().order_by('-created_at')
+    return render(request, 'core/admin/verification_list.html', {'verifications': verifications})
+
+@login_required
+@user_passes_test(is_admin)
+def get_verification_details(request, verification_id):
+    verification = get_object_or_404(SellerVerification, id=verification_id)
+    data = {
+        'full_name': verification.full_name,
+        'id_number': verification.id_number,
+        'id_document': verification.id_document.url if verification.id_document else '',
+        'business_name': verification.business_name,
+        'business_address': verification.business_address,
+        'business_location': verification.business_location,
+        'business_permit': verification.business_permit.url if verification.business_permit else '',
+        'status': verification.status
+    }
+    return JsonResponse(data)
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def approve_verification(request, verification_id):
+    verification = get_object_or_404(SellerVerification, id=verification_id)
+    verification.status = 'Verified'
+    verification.verified_by = request.user
+    verification.verification_date = timezone.now()
+    verification.save()
+    return JsonResponse({'success': True})
+
+@login_required
+@user_passes_test(is_admin)
+@require_POST
+def reject_verification(request, verification_id):
+    verification = get_object_or_404(SellerVerification, id=verification_id)
+    verification.status = 'Rejected'
+    verification.rejection_reason = request.POST.get('reason', '')
+    verification.save()
+    return JsonResponse({'success': True})
+
+@login_required
+@staff_member_required
+def admin_verifications(request):
+    verifications = SellerVerification.objects.select_related('user').all()
+    return render(request, 'core/admin_verifications.html', {
+        'verifications': verifications
+    })
+
+@login_required
+@staff_member_required
+def admin_verify_seller(request, verification_id):
+    verification = get_object_or_404(SellerVerification, id=verification_id)
+    
+    if request.method == 'POST':
+        verification.status = 'Verified'
+        verification.verification_date = timezone.now()
+        verification.save()
+        
+        messages.success(request, f'Seller {verification.user.username} has been verified successfully.')
+    else:
+        messages.error(request, 'Invalid request method.')
+    
+    return redirect('admin_verifications')
+
+@login_required
+@staff_member_required
+def admin_reject_seller(request, verification_id):
+    verification = get_object_or_404(SellerVerification, id=verification_id)
+    
+    if request.method == 'POST':
+        rejection_reason = request.POST.get('rejection_reason')
+        if rejection_reason:
+            verification.status = 'Rejected'
+            verification.rejection_reason = rejection_reason
+            verification.save()
+            
+            messages.success(request, f'Seller {verification.user.username} has been rejected.')
+        else:
+            messages.error(request, 'Please provide a rejection reason.')
+    else:
+        messages.error(request, 'Invalid request method.')
+    
+    return redirect('admin_verifications')

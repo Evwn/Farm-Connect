@@ -8,117 +8,149 @@ import base64
 from django.conf import settings
 from django.urls import reverse
 import paystack
+import logging
+import os
+
+logger = logging.getLogger(__name__)
 
 # PayPal Integration
 class PayPalGateway:
     def __init__(self):
-        # Configure PayPal with your API credentials
-        self.client_id = settings.PAYPAL_CLIENT_ID
-        self.client_secret = settings.PAYPAL_CLIENT_SECRET
-        self.mode = settings.PAYPAL_MODE
-        self.api_base_url = 'https://api.sandbox.paypal.com' if self.mode == 'sandbox' else 'https://api.paypal.com'
+        self.client_id = os.environ.get('PAYPAL_CLIENT_ID')
+        self.client_secret = os.environ.get('PAYPAL_CLIENT_SECRET')
+        self.mode = os.environ.get('PAYPAL_MODE', 'sandbox')
+        self.api_url = 'https://api.sandbox.paypal.com'
+        self.site_url = os.environ.get('SITE_URL', 'http://localhost:8000')
+        self.logger = logging.getLogger(__name__)
+        logger.info(f"Initialized PayPal gateway in sandbox mode")
     
-    def _get_access_token(self):
-        """Get an access token from PayPal"""
-        url = f"{self.api_base_url}/v1/oauth2/token"
-        credentials = f"{self.client_id}:{self.client_secret}"
-        encoded_credentials = base64.b64encode(credentials.encode()).decode()
-        
-        headers = {
-            'Content-Type': 'application/x-www-form-urlencoded',
-            'Authorization': f'Basic {encoded_credentials}',
-        }
-        
-        data = {
-            'grant_type': 'client_credentials'
-        }
-        
-        response = requests.post(url, headers=headers, data=data)
-        if response.status_code == 200:
-            return response.json()['access_token']
-        else:
-            raise Exception(f"Failed to get PayPal access token: {response.text}")
-    
-    def create_payment(self, order, return_url, cancel_url):
-        """Create a PayPal payment for an order"""
-        access_token = self._get_access_token()
-        
-        url = f"{self.api_base_url}/v1/payments/payment"
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {access_token}',
-        }
-        
-        payment_data = {
-            "intent": "sale",
-            "payer": {
-                "payment_method": "paypal"
-            },
-            "redirect_urls": {
-                "return_url": return_url,
-                "cancel_url": cancel_url
-            },
-            "transactions": [{
-                "item_list": {
-                    "items": [{
-                        "name": f"{order.quantity}kg of {order.product.name}",
-                        "sku": f"ORDER-{order.id}",
-                        "price": str(order.total_price),
-                        "currency": "USD",
-                        "quantity": 1
-                    }]
-                },
-                "amount": {
-                    "total": str(order.total_price),
-                    "currency": "USD"
-                },
-                "description": f"Escrow payment for order #{order.id}"
-            }]
-        }
-        
-        response = requests.post(url, headers=headers, json=payment_data)
-        if response.status_code == 201:
-            payment = response.json()
-            # Find the approval URL
-            for link in payment['links']:
-                if link['rel'] == 'approval_url':
-                    return {
-                        'success': True,
-                        'payment_id': payment['id'],
-                        'approval_url': link['href']
-                    }
-        
-        return {
-            'success': False,
-            'error': response.text
-        }
-    
-    def execute_payment(self, payment_id, payer_id):
-        """Execute a PayPal payment after user approval"""
-        access_token = self._get_access_token()
-        
-        url = f"{self.api_base_url}/v1/payments/payment/{payment_id}/execute"
-        headers = {
-            'Content-Type': 'application/json',
-            'Authorization': f'Bearer {access_token}',
-        }
-        
-        data = {
-            "payer_id": payer_id
-        }
-        
-        response = requests.post(url, headers=headers, json=data)
-        if response.status_code == 200:
-            payment = response.json()
-            return {
-                'success': True,
-                'transaction_id': payment['transactions'][0]['related_resources'][0]['sale']['id']
+    def get_access_token(self):
+        try:
+            auth = base64.b64encode(f"{self.client_id}:{self.client_secret}".encode()).decode()
+            headers = {
+                'Authorization': f'Basic {auth}',
+                'Content-Type': 'application/x-www-form-urlencoded'
             }
-        
-        return {
-            'success': False,
-            'error': response.text
+            data = {'grant_type': 'client_credentials'}
+            
+            self.logger.info(f"Requesting PayPal access token from {self.api_url}/v1/oauth2/token")
+            response = requests.post(f"{self.api_url}/v1/oauth2/token", headers=headers, data=data)
+            response.raise_for_status()
+            return response.json()['access_token']
+        except requests.exceptions.RequestException as e:
+            self.logger.error(f"Error getting PayPal access token: {str(e)}")
+            if hasattr(e.response, 'text'):
+                self.logger.error(f"Response text: {e.response.text}")
+            raise
+    
+    def create_payment(self, order, return_url=None, cancel_url=None):
+        """Create a PayPal payment"""
+        access_token = self.get_access_token()
+        url = f"{self.api_url}/v2/checkout/orders"
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {access_token}',
         }
+        
+        # Generate return and cancel URLs if not provided
+        if not return_url:
+            return_url = f"{self.site_url}/paypal/success/{order.id}/"
+        if not cancel_url:
+            cancel_url = f"{self.site_url}/paypal/cancel/{order.id}/"
+        
+        # Prepare payment data
+        payment_data = {
+            'intent': 'CAPTURE',
+            'purchase_units': [{
+                'reference_id': str(order.id),
+                'description': f'Order #{order.id} - {order.product.name}',
+                'custom_id': str(order.id),
+                'amount': {
+                    'currency_code': 'USD',
+                    'value': str(order.total_price)
+                }
+            }],
+            'application_context': {
+                'return_url': return_url,
+                'cancel_url': cancel_url,
+                'brand_name': 'FarmConnect',
+                'landing_page': 'LOGIN',
+                'user_action': 'PAY_NOW',
+                'shipping_preference': 'NO_SHIPPING'
+            }
+        }
+        
+        try:
+            logger.info(f"Creating PayPal payment for order {order.id}")
+            logger.info(f"Return URL: {return_url}")
+            logger.info(f"Cancel URL: {cancel_url}")
+            response = requests.post(url, headers=headers, json=payment_data)
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"PayPal payment creation response: {result}")
+            
+            if result.get('status') == 'CREATED':
+                # Get the approval URL from the response
+                approval_url = next(link['href'] for link in result['links'] if link['rel'] == 'approve')
+                logger.info(f"Payment created successfully. Approval URL: {approval_url}")
+                return {
+                    'success': True,
+                    'payment_id': result['id'],
+                    'approval_url': approval_url
+                }
+            else:
+                logger.error(f"PayPal payment creation failed. Status: {result.get('status')}")
+                return {
+                    'success': False,
+                    'error': f"Payment creation failed. Status: {result.get('status')}"
+                }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"PayPal payment creation failed: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e)
+            }
+    
+    def execute_payment(self, order_id):
+        """Execute a PayPal payment"""
+        access_token = self.get_access_token()
+        url = f"{self.api_url}/v2/checkout/orders/{order_id}/capture"
+        headers = {
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {access_token}',
+        }
+        
+        try:
+            logger.info(f"Executing PayPal payment for order {order_id}")
+            response = requests.post(url, headers=headers)
+            response.raise_for_status()
+            result = response.json()
+            logger.info(f"PayPal payment execution response: {result}")
+            
+            if result.get('status') == 'COMPLETED':
+                # Get the transaction ID from the first capture
+                transaction_id = result['purchase_units'][0]['payments']['captures'][0]['id']
+                logger.info(f"Payment completed successfully. Transaction ID: {transaction_id}")
+                return {
+                    'success': True,
+                    'transaction_id': transaction_id,
+                    'status': result['status'],
+                    'order_id': order_id
+                }
+            else:
+                logger.error(f"PayPal payment not completed. Status: {result.get('status')}")
+                return {
+                    'success': False,
+                    'error': f"Payment status: {result.get('status')}",
+                    'order_id': order_id
+                }
+        except requests.exceptions.RequestException as e:
+            logger.error(f"PayPal payment execution failed: {str(e)}")
+            return {
+                'success': False,
+                'error': str(e),
+                'order_id': order_id
+            }
 
 # Paystack Integration
 class PaystackGateway:

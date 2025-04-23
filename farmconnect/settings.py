@@ -156,4 +156,4 @@ SKRILL_MERCHANT_EMAIL = os.environ.get('SKRILL_MERCHANT_EMAIL', '')
 SKRILL_SECRET_WORD = os.environ.get('SKRILL_SECRET_WORD', '')
 
 # Site URL for payment callbacks
-SITE_URL = 'http://localhost:8000'
+SITE_URL = os.environ.get('SITE_URL', 'http://localhost:8000')

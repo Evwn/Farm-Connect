@@ -1,0 +1,430 @@
+{% extends 'core/dashboard_base.html' %}
+{% load static %}
+{% block content %}
+<div class="dashboard-header">
+  <h1>Seller Verifications <i class="fas fa-user-check"></i></h1>
+</div>
+
+<div class="dashboard-grid">
+  <div class="dashboard-card">
+    <div class="verification-filters">
+      <select id="status-filter" class="form-control">
+        <option value="">All Status</option>
+        <option value="Pending">Pending</option>
+        <option value="Verified">Verified</option>
+        <option value="Rejected">Rejected</option>
+      </select>
+      <input type="text" id="search-filter" class="form-control" placeholder="Search by name or business...">
+    </div>
+
+    <div class="verification-list">
+      {% for verification in verifications %}
+        <div class="verification-item" data-status="{{ verification.status }}">
+          <div class="verification-header">
+            <div class="verification-info">
+              <h3>{{ verification.user.get_full_name }}</h3>
+              <p class="business-name">{{ verification.business_name }}</p>
+              <span class="status-badge {{ verification.status|lower }}">{{ verification.status }}</span>
+            </div>
+            <div class="verification-actions">
+              <button class="btn btn-sm btn-view" onclick="viewVerification({{ verification.id }})">
+                <i class="fas fa-eye"></i> View Details
+              </button>
+            </div>
+          </div>
+        </div>
+      {% empty %}
+        <div class="empty-state">
+          <i class="fas fa-clipboard-list"></i>
+          <p>No verification requests found</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Verification Details Modal -->
+<div id="verification-modal" class="modal">
+  <div class="modal-content">
+    <div class="modal-header">
+      <h2>Verification Details</h2>
+      <button class="close-modal">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="verification-details">
+        <div class="detail-section">
+          <h3>Personal Information</h3>
+          <div class="detail-group">
+            <label>Full Name:</label>
+            <span id="detail-full-name"></span>
+          </div>
+          <div class="detail-group">
+            <label>ID Number:</label>
+            <span id="detail-id-number"></span>
+          </div>
+          <div class="detail-group">
+            <label>ID Document:</label>
+            <img id="detail-id-document" src="" alt="ID Document" class="document-image">
+          </div>
+        </div>
+
+        <div class="detail-section">
+          <h3>Business Information</h3>
+          <div class="detail-group">
+            <label>Business Name:</label>
+            <span id="detail-business-name"></span>
+          </div>
+          <div class="detail-group">
+            <label>Business Address:</label>
+            <span id="detail-business-address"></span>
+          </div>
+          <div class="detail-group">
+            <label>Business Location:</label>
+            <span id="detail-business-location"></span>
+          </div>
+          <div class="detail-group">
+            <label>Business Permit:</label>
+            <img id="detail-business-permit" src="" alt="Business Permit" class="document-image">
+          </div>
+        </div>
+
+        <div class="verification-actions">
+          <button class="btn btn-success" onclick="approveVerification()">
+            <i class="fas fa-check"></i> Approve
+          </button>
+          <button class="btn btn-danger" onclick="rejectVerification()">
+            <i class="fas fa-times"></i> Reject
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .verification-filters {
+    display: flex;
+    gap: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .verification-filters .form-control {
+    flex: 1;
+    max-width: 300px;
+  }
+
+  .verification-list {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .verification-item {
+    background: white;
+    border-radius: 10px;
+    padding: 1.5rem;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+  }
+
+  .verification-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .verification-info h3 {
+    margin: 0;
+    color: #2e7d32;
+  }
+
+  .business-name {
+    color: #666;
+    margin: 0.5rem 0;
+  }
+
+  .status-badge {
+    padding: 0.25rem 0.75rem;
+    border-radius: 20px;
+    font-size: 0.875rem;
+    font-weight: 600;
+  }
+
+  .status-badge.pending {
+    background: #fff3cd;
+    color: #856404;
+  }
+
+  .status-badge.verified {
+    background: #d4edda;
+    color: #155724;
+  }
+
+  .status-badge.rejected {
+    background: #f8d7da;
+    color: #721c24;
+  }
+
+  .btn-view {
+    background: #2e7d32;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 5px;
+    cursor: pointer;
+  }
+
+  .btn-view:hover {
+    background: #1b5e20;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem;
+    color: #666;
+  }
+
+  .empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Modal Styles */
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5);
+    z-index: 1000;
+  }
+
+  .modal-content {
+    background: white;
+    margin: 2rem auto;
+    padding: 2rem;
+    border-radius: 10px;
+    max-width: 800px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+  }
+
+  .close-modal {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+  }
+
+  .detail-section {
+    margin-bottom: 2rem;
+  }
+
+  .detail-section h3 {
+    color: #2e7d32;
+    margin-bottom: 1rem;
+  }
+
+  .detail-group {
+    margin-bottom: 1rem;
+  }
+
+  .detail-group label {
+    font-weight: 600;
+    color: #495057;
+  }
+
+  .document-image {
+    max-width: 100%;
+    border-radius: 5px;
+    margin-top: 0.5rem;
+  }
+
+  .verification-actions {
+    display: flex;
+    gap: 1rem;
+    margin-top: 2rem;
+  }
+
+  .btn-success {
+    background: #28a745;
+    color: white;
+  }
+
+  .btn-danger {
+    background: #dc3545;
+    color: white;
+  }
+
+  @media (max-width: 768px) {
+    .verification-filters {
+      flex-direction: column;
+    }
+
+    .verification-filters .form-control {
+      max-width: 100%;
+    }
+
+    .verification-header {
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .verification-actions {
+      flex-direction: column;
+    }
+  }
+</style>
+
+<script>
+  // Filter functionality
+  document.getElementById('status-filter').addEventListener('change', filterVerifications);
+  document.getElementById('search-filter').addEventListener('input', filterVerifications);
+
+  function filterVerifications() {
+    const statusFilter = document.getElementById('status-filter').value.toLowerCase();
+    const searchFilter = document.getElementById('search-filter').value.toLowerCase();
+    const items = document.querySelectorAll('.verification-item');
+
+    items.forEach(item => {
+      const status = item.dataset.status.toLowerCase();
+      const text = item.textContent.toLowerCase();
+      const matchesStatus = !statusFilter || status === statusFilter;
+      const matchesSearch = !searchFilter || text.includes(searchFilter);
+      item.style.display = matchesStatus && matchesSearch ? 'block' : 'none';
+    });
+  }
+
+  // Modal functionality
+  const modal = document.getElementById('verification-modal');
+  const closeBtn = document.querySelector('.close-modal');
+  let currentVerificationId = null;
+
+  async function viewVerification(id) {
+    currentVerificationId = id;
+    try {
+      const response = await fetch(`/admin/verifications/${id}/details/`);
+      const data = await response.json();
+      
+      // Update modal content
+      document.getElementById('detail-full-name').textContent = data.full_name;
+      document.getElementById('detail-id-number').textContent = data.id_number;
+      document.getElementById('detail-business-name').textContent = data.business_name;
+      document.getElementById('detail-business-address').textContent = data.business_address;
+      document.getElementById('detail-business-location').textContent = data.business_location;
+      
+      // Update document images
+      const idDocument = document.getElementById('detail-id-document');
+      const businessPermit = document.getElementById('detail-business-permit');
+      
+      if (data.id_document) {
+        idDocument.src = data.id_document;
+        idDocument.style.display = 'block';
+      } else {
+        idDocument.style.display = 'none';
+      }
+      
+      if (data.business_permit) {
+        businessPermit.src = data.business_permit;
+        businessPermit.style.display = 'block';
+      } else {
+        businessPermit.style.display = 'none';
+      }
+      
+      // Show modal
+      modal.style.display = 'block';
+    } catch (error) {
+      console.error('Error fetching verification details:', error);
+      alert('Error loading verification details. Please try again.');
+    }
+  }
+
+  closeBtn.onclick = function() {
+    modal.style.display = 'none';
+    currentVerificationId = null;
+  }
+
+  window.onclick = function(event) {
+    if (event.target === modal) {
+      modal.style.display = 'none';
+      currentVerificationId = null;
+    }
+  }
+
+  async function approveVerification() {
+    if (!currentVerificationId) return;
+    
+    try {
+      const response = await fetch(`/admin/verifications/${currentVerificationId}/approve/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        alert('Verification approved successfully!');
+        location.reload(); // Refresh the page to update the list
+      } else {
+        throw new Error('Failed to approve verification');
+      }
+    } catch (error) {
+      console.error('Error approving verification:', error);
+      alert('Error approving verification. Please try again.');
+    }
+  }
+
+  async function rejectVerification() {
+    if (!currentVerificationId) return;
+    
+    const reason = prompt('Please enter the reason for rejection:');
+    if (!reason) return;
+    
+    try {
+      const response = await fetch(`/admin/verifications/${currentVerificationId}/reject/`, {
+        method: 'POST',
+        headers: {
+          'X-CSRFToken': getCookie('csrftoken'),
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reason })
+      });
+      
+      if (response.ok) {
+        alert('Verification rejected successfully!');
+        location.reload(); // Refresh the page to update the list
+      } else {
+        throw new Error('Failed to reject verification');
+      }
+    } catch (error) {
+      console.error('Error rejecting verification:', error);
+      alert('Error rejecting verification. Please try again.');
+    }
+  }
+
+  // Helper function to get CSRF token
+  function getCookie(name) {
+    let cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+      const cookies = document.cookie.split(';');
+      for (let i = 0; i < cookies.length; i++) {
+        const cookie = cookies[i].trim();
+        if (cookie.substring(0, name.length + 1) === (name + '=')) {
+          cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+          break;
+        }
+      }
+    }
+    return cookieValue;
+  }
+</script>
+{% endblock %} 

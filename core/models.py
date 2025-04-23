@@ -56,10 +56,11 @@ class Order(models.Model):
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='Processing')
     payment_status = models.CharField(max_length=10, choices=PAYMENT_STATUS_CHOICES, default='Pending')
     created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
     escrow_id = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
 
     def __str__(self):
-        return f"{self.quantity}kg of {self.product.name} by {self.buyer.username}"
+        return f"Order #{self.id} - {self.product.name}"
 
 class EscrowTransaction(models.Model):
     STATUS_CHOICES = [
@@ -83,7 +84,7 @@ class EscrowTransaction(models.Model):
         ('Resolved_Compromise', 'Resolved with Compromise'),
     ]
 
-    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='escrow')
+    order = models.OneToOneField(Order, on_delete=models.CASCADE, related_name='escrow_transaction')
     amount = models.DecimalField(max_digits=10, decimal_places=2)
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
     created_at = models.DateTimeField(auto_now_add=True)
@@ -162,3 +163,32 @@ class Farm(models.Model):
 
     def __str__(self):
         return self.name
+
+class SellerVerification(models.Model):
+    STATUS_CHOICES = [
+        ('Pending', 'Pending'),
+        ('Verified', 'Verified'),
+        ('Rejected', 'Rejected')
+    ]
+
+    seller = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='verification')
+    full_name = models.CharField(max_length=100)
+    id_number = models.CharField(max_length=50)
+    id_document = models.ImageField(upload_to='verification/id_documents/')
+    business_name = models.CharField(max_length=100)
+    business_address = models.TextField()
+    business_location = models.CharField(max_length=100)
+    business_permit = models.ImageField(upload_to='verification/business_permits/')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='Pending')
+    rejection_reason = models.TextField(blank=True, null=True)
+    verified_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True, related_name='verified_sellers')
+    verification_date = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.seller.username} - {self.status}"
+
+    class Meta:
+        verbose_name = 'Seller Verification'
+        verbose_name_plural = 'Seller Verifications'

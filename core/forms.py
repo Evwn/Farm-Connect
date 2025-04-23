@@ -1,6 +1,6 @@
 from django import forms
 from django.contrib.auth.forms import UserCreationForm
-from .models import CustomUser, Product, Farm, Order
+from .models import CustomUser, Product, Farm, Order, SellerVerification
 
 class CustomUserCreationForm(UserCreationForm):
     class Meta:
@@ -46,4 +46,19 @@ class FarmForm(forms.ModelForm):
             'description': forms.Textarea(attrs={'rows': 4}),
             'address': forms.Textarea(attrs={'rows': 2}),
             'established_year': forms.NumberInput(attrs={'min': 1900, 'max': 2100}),
+        }
+
+class SellerVerificationForm(forms.ModelForm):
+    class Meta:
+        model = SellerVerification
+        fields = [
+            'full_name', 'id_number', 'id_document', 'business_permit',
+            'business_name', 'business_address', 'business_location'
+        ]
+        widgets = {
+            'full_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'id_number': forms.TextInput(attrs={'class': 'form-control'}),
+            'business_name': forms.TextInput(attrs={'class': 'form-control'}),
+            'business_address': forms.Textarea(attrs={'class': 'form-control', 'rows': 3}),
+            'business_location': forms.TextInput(attrs={'class': 'form-control'}),
         }

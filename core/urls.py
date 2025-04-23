@@ -53,10 +53,17 @@ urlpatterns = [
     path('dispute/<int:order_id>/admin-resolution/', views.admin_dispute_resolution, name='admin_dispute_resolution'),
     
     # Payment gateway callbacks
-    path('order/<int:order_id>/paypal/success/', views.paypal_success, name='paypal_success'),
-    path('order/<int:order_id>/paypal/cancel/', views.paypal_cancel, name='paypal_cancel'),
+    path('paypal/success/<int:order_id>/', views.paypal_success, name='paypal_success'),
+    path('paypal/cancel/<int:order_id>/', views.paypal_cancel, name='paypal_cancel'),
     path('order/<int:order_id>/paystack/callback/', views.paystack_callback, name='paystack_callback'),
     path('order/<int:order_id>/skrill/status/', views.skrill_status, name='skrill_status'),
     path('order/<int:order_id>/confirm/', views.confirm_order, name='confirm_order'),
+    path('order/<int:order_id>/auto-release/', views.auto_release_escrow, name='auto_release_escrow'),
     path('check-pending-releases/', views.check_pending_releases, name='check_pending_releases'),
+
+    # Seller verification URLs
+    path('seller-verification/', views.seller_verification, name='seller_verification'),
+    path('admin/verifications/', views.admin_verifications, name='admin_verifications'),
+    path('admin/verify-seller/<int:verification_id>/', views.admin_verify_seller, name='admin_verify_seller'),
+    path('admin/reject-seller/<int:verification_id>/', views.admin_reject_seller, name='admin_reject_seller'),
 ]

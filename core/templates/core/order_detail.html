@@ -34,36 +34,6 @@
                             <p><strong>Order Date:</strong> {{ order.created_at|date:"M d, Y" }}</p>
                         </div>
                     </div>
-                    {% if order.payment_status == 'Pending' and user == order.buyer %}
-                    <div class="text-center mt-3">
-                        <a href="{% url 'escrow_payment' order.id %}" class="btn btn-primary">
-                            <i class="fas fa-credit-card"></i> Pay Now
-                        </a>
-                    </div>
-                    {% endif %}
-                    
-                    {% if order.escrow and order.escrow.status == 'Funded' and order.status == 'Completed' and user == order.buyer %}
-                    <div class="text-center mt-3">
-                        <button class="btn btn-success" onclick="confirmOrder({{ order.id }})">
-                            <i class="fas fa-check-circle"></i> Confirm Order
-                        </button>
-                        <a href="{% url 'dispute_escrow' order.id %}" class="btn btn-danger ms-2">
-                            <i class="fas fa-exclamation-triangle"></i> Dispute Order
-                        </a>
-                    </div>
-                    {% endif %}
-                    
-                    {% if order.escrow and order.escrow.status == 'Waiting_Confirmation' %}
-                    <div class="text-center mt-3">
-                        <div class="alert alert-info">
-                            <i class="fas fa-clock"></i> Payment will be automatically released after 24 hours from confirmation.
-                            <div id="countdown-timer" class="mt-2" data-release-time="{{ order.escrow.scheduled_release_time|date:'c' }}">
-                                <span class="countdown-label">Time remaining:</span>
-                                <span class="countdown-value"></span>
-                            </div>
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -91,22 +61,6 @@
                         </div>
                     </div>
 
-                    {% if escrow.status == 'Funded' and user == order.seller %}
-                    <form method="post" action="{% url 'release_escrow' escrow.id %}" class="mb-3">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-success">Release Payment</button>
-                    </form>
-                    {% endif %}
-
-                    {% if escrow.status == 'Funded' and user == order.buyer and not escrow.dispute %}
-                    <form method="post" action="{% url 'dispute_escrow' order.id %}" class="mb-3">
-                        {% csrf_token %}
-                        <button type="button" class="btn btn-warning" data-bs-toggle="modal" data-bs-target="#disputeModal">
-                            File Dispute
-                        </button>
-                    </form>
-                    {% endif %}
-
                     {% if escrow.dispute %}
                     <div class="alert alert-warning">
                         <h6>Dispute Information</h6>
@@ -120,155 +74,97 @@
                 </div>
             </div>
             {% endif %}
-        </div>
-    </div>
-</div>
 
-<!-- Dispute Modal -->
-<div class="modal fade" id="disputeModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">File Dispute</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-            </div>
-            <form method="post" action="{% url 'dispute_escrow' order.id %}">
-                {% csrf_token %}
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="reason" class="form-label">Reason for Dispute</label>
-                        <textarea class="form-control" id="reason" name="reason" rows="3" required></textarea>
+            {% if order.payment_status == 'In Escrow' and order.escrow_transaction.status == 'Funded' %}
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Escrow Status</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">Your payment is currently held in escrow. You can either:</p>
+                    
+                    <div class="d-flex justify-content-between align-items-center mb-3">
+                        <div>
+                            <h6>Auto-release in:</h6>
+                            <div id="countdown" class="h4 text-primary"></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="autoReleaseEscrow()">
+                            Release Now
+                        </button>
+                    </div>
+                    
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        The payment will be automatically released to the seller after 12 hours.
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-warning">Submit Dispute</button>
-                </div>
-            </form>
+            </div>
+
+            <script>
+                function autoReleaseEscrow() {
+                    if (confirm('Are you sure you want to release the payment now?')) {
+                        fetch(`/order/{{ order.id }}/auto-release/`, {
+                            method: 'POST',
+                            headers: {
+                                'X-CSRFToken': '{{ csrf_token }}',
+                                'Content-Type': 'application/json'
+                            }
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                location.reload();
+                            } else {
+                                alert(data.error || 'Failed to release payment');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error:', error);
+                            alert('An error occurred while releasing the payment');
+                        });
+                    }
+                }
+
+                // Set up countdown timer
+                const completionTime = new Date('{{ order.completed_at|date:"c" }}').getTime();
+                const autoReleaseTime = completionTime + (12 * 60 * 60 * 1000); // 12 hours
+
+                function updateCountdown() {
+                    const now = new Date().getTime();
+                    const distance = autoReleaseTime - now;
+
+                    if (distance < 0) {
+                        document.getElementById('countdown').innerHTML = "Auto-release available";
+                        return;
+                    }
+
+                    const hours = Math.floor(distance / (1000 * 60 * 60));
+                    const minutes = Math.floor((distance % (1000 * 60 * 60)) / (1000 * 60));
+                    const seconds = Math.floor((distance % (1000 * 60)) / 1000);
+
+                    document.getElementById('countdown').innerHTML = 
+                        `${hours}h ${minutes}m ${seconds}s`;
+                }
+
+                updateCountdown();
+                setInterval(updateCountdown, 1000);
+            </script>
+            {% endif %}
         </div>
     </div>
 </div>
 
 <style>
-  #countdown-timer {
+#countdown-timer {
     background: rgba(255, 255, 255, 0.9);
     padding: 0.5rem 1rem;
     border-radius: 5px;
     margin-top: 1rem;
-  }
+}
 
-  .countdown-label {
+.countdown-label {
     font-weight: 600;
     margin-right: 0.5rem;
-  }
-
-  .countdown-value {
-    font-family: monospace;
-    font-size: 1.1rem;
-    color: #2e7d32;
-  }
-
-  @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.5; }
-    100% { opacity: 1; }
-  }
-
-  .countdown-value.expiring {
-    color: #dc3545;
-    animation: pulse 1s infinite;
-  }
+}
 </style>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-  function confirmOrder(orderId) {
-    Swal.fire({
-      title: 'Confirm Order Completion',
-      text: 'Are you sure you want to confirm this order? This will initiate the 24-hour countdown for payment release.',
-      icon: 'question',
-      showCancelButton: true,
-      confirmButtonColor: '#2e7d32',
-      cancelButtonColor: '#d33',
-      confirmButtonText: 'Yes, confirm it!'
-    }).then((result) => {
-      if (result.isConfirmed) {
-        fetch(`/order/${orderId}/confirm/`, {
-          method: 'POST',
-          headers: {
-            'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-          },
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.success) {
-            Swal.fire(
-              'Confirmed!',
-              'Your order has been confirmed. Payment will be released after 24 hours.',
-              'success'
-            ).then(() => {
-              window.location.reload();
-            });
-          } else {
-            Swal.fire(
-              'Error!',
-              data.error || 'Something went wrong.',
-              'error'
-            );
-          }
-        });
-      }
-    });
-  }
-
-  // Countdown timer functionality
-  function updateCountdown() {
-    const timerElement = document.getElementById('countdown-timer');
-    if (!timerElement) return;
-
-    const releaseTime = new Date(timerElement.dataset.releaseTime).getTime();
-    const now = new Date().getTime();
-    const timeLeft = releaseTime - now;
-
-    if (timeLeft <= 0) {
-      // Time's up - check if payment should be released
-      fetch('/check-pending-releases/', {
-        method: 'GET',
-        headers: {
-          'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
-        }
-      })
-      .then(response => response.json())
-      .then(data => {
-        if (data.success) {
-          window.location.reload();
-        }
-      });
-      return;
-    }
-
-    // Calculate hours, minutes, seconds
-    const hours = Math.floor(timeLeft / (1000 * 60 * 60));
-    const minutes = Math.floor((timeLeft % (1000 * 60 * 60)) / (1000 * 60));
-    const seconds = Math.floor((timeLeft % (1000 * 60)) / 1000);
-
-    // Update the display
-    const countdownValue = timerElement.querySelector('.countdown-value');
-    countdownValue.textContent = `${hours}h ${minutes}m ${seconds}s`;
-
-    // Add visual feedback when less than 1 hour remains
-    if (hours < 1) {
-      countdownValue.classList.add('expiring');
-    } else {
-      countdownValue.classList.remove('expiring');
-    }
-  }
-
-  // Start countdown if timer element exists
-  if (document.getElementById('countdown-timer')) {
-    updateCountdown();
-    setInterval(updateCountdown, 1000);
-  }
-</script>
 {% endblock %} 

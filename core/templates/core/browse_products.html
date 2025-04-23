@@ -79,8 +79,14 @@
                 <i class="fas fa-user-circle fa-2x text-secondary"></i>
               </div>
               <div>
-                <div class="seller-name fw-bold">
+                <div class="seller-name fw-bold d-flex align-items-center gap-2">
                   {{ product.farmer.username }}
+                  {% if product.farmer.verification and product.farmer.verification.status == 'Verified' %}
+                    <span class="verification-badge verified">
+                      <i class="fas fa-check-circle"></i>
+                      Verified
+                    </span>
+                  {% endif %}
                 </div>
                 <div class="product-location small text-muted">
                   <i class="fas fa-map-marker-alt me-1"></i>
@@ -95,32 +101,54 @@
             <div class="product-price">${{ product.price_per_kg }}/kg</div>
           </div>
 
-          <!-- Price Prediction Section -->
-          <div class="price-prediction-section mb-3">
-            <div class="price-prediction-container">
-              <div class="current-price">
-                <strong>Current: ${{ product.price_per_kg }}/kg</strong>
+          <!-- Insights Dropdown Button -->
+          <div class="insights-dropdown mb-3">
+            <button class="btn btn-outline-primary btn-sm w-100 insights-toggle" 
+                    type="button" 
+                    data-bs-toggle="collapse" 
+                    data-bs-target="#insights{{ product.id }}" 
+                    aria-expanded="false" 
+                    aria-controls="insights{{ product.id }}">
+              <i class="fas fa-chart-line me-2"></i>View Insights
+            </button>
+            
+            <!-- Collapsible Insights Content -->
+            <div class="collapse" id="insights{{ product.id }}">
+              <div class="price-prediction-section mt-3">
+                <div class="price-prediction-container">
+                  <div class="current-price">
+                    <strong>Current: ${{ product.price_per_kg }}/kg</strong>
+                  </div>
+                  <div class="next-harvest-price" id="nextHarvestPrice{{ product.id }}">
+                    <!-- Next harvest price will be inserted here by JavaScript -->
+                  </div>
+                  <div class="prediction-box">
+                    <div class="prediction-header">
+                      <small class="text-muted">Next Harvest Prediction</small>
+                    </div>
+                    <div class="prediction-graph">
+                      <canvas id="priceChart{{ product.id }}" width="150" height="40"></canvas>
+                    </div>
+                    <div class="prediction-change" id="priceChange{{ product.id }}">
+                      <!-- Price change will be inserted here by JavaScript -->
+                    </div>
+                    <div class="prediction-judgment" id="priceJudgment{{ product.id }}">
+                      <!-- Judgment will be inserted here by JavaScript -->
+                    </div>
+                  </div>
+                </div>
+                <div id="insightsContainer{{ product.id }}" class="insights-container">
+                  <!-- Buying Insights Section -->
+                  <div class="insights-container mt-3">
+                    <div class="insights-title">
+                      <i class="fas fa-lightbulb me-2"></i>Buying Insights
+                    </div>
+                    <ul class="insights-list" id="insightsList{{ product.id }}">
+                      <!-- Insights will be inserted here by JavaScript -->
+                    </ul>
+                  </div>
+                </div>
               </div>
-              <div class="suggested-price" id="suggestedPrice{{ product.id }}">
-                <!-- Suggested price will be inserted here by JavaScript -->
-              </div>
-              <div class="prediction-box">
-                <div class="prediction-header">
-                  <small class="text-muted">Next Harvest Prediction</small>
-                </div>
-                <div class="prediction-graph">
-                  <canvas id="priceChart{{ product.id }}" width="150" height="40"></canvas>
-                </div>
-                <div class="prediction-change" id="priceChange{{ product.id }}">
-                  <!-- Price change will be inserted here by JavaScript -->
-                </div>
-                <div class="prediction-judgment" id="priceJudgment{{ product.id }}">
-                  <!-- Judgment will be inserted here by JavaScript -->
-                </div>
-              </div>
-            </div>
-            <div id="insightsContainer{{ product.id }}" class="insights-container">
-              <!-- Insights will be inserted here by JavaScript -->
             </div>
           </div>
 
@@ -219,6 +247,30 @@
     box-shadow: none;
   }
 
+  /* Insights Dropdown Styles */
+  .insights-dropdown {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 10px;
+    background-color: #f8f9fa;
+  }
+
+  .insights-toggle {
+    border: none;
+    background-color: transparent;
+    color: var(--secondary-green);
+    transition: var(--transition);
+  }
+
+  .insights-toggle:hover {
+    background-color: var(--accent-mint);
+    color: var(--secondary-green);
+  }
+
+  .insights-toggle[aria-expanded="true"] {
+    background-color: var(--accent-mint);
+  }
+
   /* Price Prediction Styles */
   .price-prediction-section {
     border: 1px solid #e0e0e0;
@@ -237,7 +289,7 @@
     margin-bottom: 5px;
   }
 
-  .suggested-price {
+  .next-harvest-price {
     margin-bottom: 10px;
     font-size: 0.85rem;
     color: #0d6efd;
@@ -248,99 +300,25 @@
     border: 1px solid #e0e0e0;
     border-radius: 8px;
     padding: 8px;
-    background-color: #f8f9fa;
-    display: flex;
-    flex-direction: row;
-    align-items: center;
-    gap: 10px;
-    position: relative;
-    margin-top: 5px;
+    background-color: white;
   }
 
   .prediction-header {
-    text-align: center;
     margin-bottom: 5px;
-    font-size: 0.8rem;
-    position: absolute;
-    top: -20px;
-    left: 0;
-    right: 0;
   }
 
   .prediction-graph {
-    width: 150px;
-    height: 40px;
-    margin-bottom: 5px;
-    flex-shrink: 0;
+    margin: 5px 0;
   }
 
   .prediction-change {
-    font-size: 0.9rem;
-    font-weight: 500;
-    padding: 2px 6px;
-    border-radius: 4px;
-    text-align: center;
-    margin-bottom: 5px;
+    font-size: 0.8rem;
+    margin: 5px 0;
   }
 
   .prediction-judgment {
     font-size: 0.8rem;
-    text-align: center;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background-color: rgba(0, 0, 0, 0.05);
-  }
-
-  .prediction-change.positive {
-    color: #28a745;
-    background-color: rgba(40, 167, 69, 0.1);
-  }
-
-  .prediction-change.negative {
-    color: #dc3545;
-    background-color: rgba(220, 53, 69, 0.1);
-  }
-
-  .insights-container {
-    margin-top: 10px;
-    padding: 8px 10px;
-    border-radius: 6px;
-    background-color: #f8f9fa;
-    border: 1px solid #e0e0e0;
-    width: 100%;
-    min-height: 120px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
-  }
-
-  .insights-title {
-    font-size: 0.8rem;
-    font-weight: 600;
-    margin-bottom: 5px;
-    color: #495057;
-    border-bottom: 1px solid #e0e0e0;
-    padding-bottom: 3px;
-  }
-
-  .insights-list {
-    font-size: 0.75rem;
-    margin: 0;
-    padding-left: 15px;
-  }
-
-  .insights-list li {
-    margin-bottom: 4px;
-    line-height: 1.3;
-  }
-
-  .insights-list li:last-child {
-    margin-bottom: 0;
-  }
-
-  .insight-action {
-    font-weight: 500;
-    color: #0d6efd;
+    font-style: italic;
   }
 
   /* Existing Product Styles */
@@ -449,6 +427,49 @@
   .empty-state h4 {
     margin-bottom: 0.5rem;
   }
+
+  /* Insights Container Styles */
+  .insights-container {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    background-color: #f8f9fa;
+    margin-top: 10px;
+  }
+
+  .insights-title {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--secondary-green);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+  }
+
+  .insights-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .insights-list li {
+    font-size: 0.85rem;
+    color: #495057;
+    padding: 4px 0;
+    display: flex;
+    align-items: center;
+  }
+
+  .insights-list li i {
+    margin-right: 8px;
+    color: var(--secondary-green);
+    font-size: 0.9rem;
+  }
+
+  .insight-action {
+    color: var(--primary-green);
+    font-weight: 500;
+  }
 </style>
 
 <script>
@@ -552,18 +573,24 @@ document.addEventListener('DOMContentLoaded', function() {
       // Create price change indicator
       const priceChangeEl = document.getElementById('priceChange{{ product.id }}');
       if (priceChangeEl) {
-        priceChangeEl.textContent = `${changePercent > 0 ? '+' : ''}${changePercent}%`;
-        priceChangeEl.classList.add(changePercent >= 0 ? 'positive' : 'negative');
+        priceChangeEl.innerHTML = `
+          <span class="${changePercent >= 0 ? 'text-success' : 'text-danger'}">
+            <i class="fas fa-${changePercent >= 0 ? 'arrow-up' : 'arrow-down'}"></i>
+            ${Math.abs(changePercent)}%
+          </span>
+        `;
       } else {
         console.error('Price change element not found for product {{ product.id }}');
       }
       
-      // Create suggested price
-      const suggestedPriceEl = document.getElementById('suggestedPrice{{ product.id }}');
-      if (suggestedPriceEl) {
-        suggestedPriceEl.innerHTML = `<strong>Suggested: $${predictedPrice}/kg</strong>`;
+      // Create next harvest price
+      const nextHarvestPriceEl = document.getElementById('nextHarvestPrice{{ product.id }}');
+      if (nextHarvestPriceEl) {
+        nextHarvestPriceEl.innerHTML = `
+          <strong>Next Harvest: $${predictedPrice}/kg</strong>
+        `;
       } else {
-        console.error('Suggested price element not found for product {{ product.id }}');
+        console.error('Next harvest price element not found for product {{ product.id }}');
       }
       
       // Create judgment message
@@ -578,69 +605,6 @@ document.addEventListener('DOMContentLoaded', function() {
         } else {
           judgmentEl.textContent = "Consider waiting for lower prices";
         }
-      }
-      
-      // Add detailed insights
-      const insightsContainer = document.getElementById(`insightsContainer${productId}`);
-      if (insightsContainer) {
-        const insightsTitle = document.createElement('div');
-        insightsTitle.className = 'insights-title';
-        insightsTitle.textContent = 'Buying Insights';
-        
-        const insightsList = document.createElement('ul');
-        insightsList.className = 'insights-list';
-        
-        // Generate insights based on price prediction
-        const insights = [];
-        
-        // Price trend insight
-        if (changePercent > 0) {
-          insights.push(`Price expected to <span class="insight-action">increase by ${changePercent}%</span> in the next week`);
-        } else {
-          insights.push(`Price expected to <span class="insight-action">decrease by ${Math.abs(changePercent)}%</span> in the next week`);
-        }
-        
-        // Buying timing insight
-        if (changePercent > 1.5) {
-          insights.push(`Consider <span class="insight-action">buying now</span> to avoid higher prices later`);
-        } else if (changePercent < -1.5) {
-          insights.push(`Consider <span class="insight-action">waiting to buy</span> for potentially lower prices`);
-        }
-        
-        // Bulk buying insight
-        if (changePercent > 1) {
-          insights.push(`This is a <span class="insight-action">good time for bulk purchases</span> if you have storage`);
-        } else if (changePercent < -1) {
-          insights.push(`Consider <span class="insight-action">smaller purchases</span> until prices stabilize`);
-        }
-        
-        // Market demand insight
-        if (changePercent > 1) {
-          insights.push(`Market demand appears to be <span class="insight-action">increasing</span> for this product`);
-        } else if (changePercent < -1) {
-          insights.push(`Market demand appears to be <span class="insight-action">decreasing</span> for this product`);
-        } else {
-          insights.push(`Market demand appears to be <span class="insight-action">stable</span> for this product`);
-        }
-        
-        // Seasonal insight
-        const month = new Date().getMonth();
-        if (month >= 5 && month <= 8) { // Summer months
-          insights.push(`Summer season may <span class="insight-action">increase demand</span> for fresh produce`);
-        } else if (month >= 11 || month <= 1) { // Winter months
-          insights.push(`Winter season may <span class="insight-action">decrease demand</span> for some produce`);
-        }
-        
-        // Add insights to the list
-        insights.forEach(insight => {
-          const li = document.createElement('li');
-          li.innerHTML = insight;
-          insightsList.appendChild(li);
-        });
-        
-        insightsContainer.innerHTML = '';
-        insightsContainer.appendChild(insightsTitle);
-        insightsContainer.appendChild(insightsList);
       }
       
       // Create sparkline chart
@@ -695,6 +659,91 @@ document.addEventListener('DOMContentLoaded', function() {
       });
       
       console.log('Chart created successfully for product {{ product.id }}');
+
+      // Add buying insights
+      const insightsList = document.getElementById(`insightsList${productId}`);
+      if (insightsList) {
+        const insights = [];
+        
+        // Price trend insight
+        if (changePercent > 0) {
+          insights.push({
+            icon: 'fa-arrow-up',
+            text: `Next harvest price is projected to <span class="insight-action">increase by ${Math.abs(changePercent)}%</span>`
+          });
+        } else {
+          insights.push({
+            icon: 'fa-arrow-down',
+            text: `Next harvest price is projected to <span class="insight-action">decrease by ${Math.abs(changePercent)}%</span>`
+          });
+        }
+        
+        // Buying timing insight
+        if (changePercent > 1.5) {
+          insights.push({
+            icon: 'fa-clock',
+            text: `Optimal time to <span class="insight-action">secure your order</span> before next harvest`
+          });
+        } else if (changePercent < -1.5) {
+          insights.push({
+            icon: 'fa-clock',
+            text: `Consider <span class="insight-action">delaying purchase</span> until after next harvest`
+          });
+        }
+        
+        // Bulk buying insight
+        if (changePercent > 1) {
+          insights.push({
+            icon: 'fa-box',
+            text: `Strategic opportunity for <span class="insight-action">volume purchases</span> with storage capacity`
+          });
+        } else if (changePercent < -1) {
+          insights.push({
+            icon: 'fa-box',
+            text: `Recommended to <span class="insight-action">maintain flexible inventory</span> levels`
+          });
+        }
+        
+        // Market demand insight
+        if (changePercent > 1) {
+          insights.push({
+            icon: 'fa-chart-line',
+            text: `Market indicators show <span class="insight-action">growing demand</span> for this product`
+          });
+        } else if (changePercent < -1) {
+          insights.push({
+            icon: 'fa-chart-line',
+            text: `Market indicators show <span class="insight-action">softening demand</span> for this product`
+          });
+        } else {
+          insights.push({
+            icon: 'fa-chart-line',
+            text: `Market indicators show <span class="insight-action">stable demand</span> for this product`
+          });
+        }
+        
+        // Seasonal insight
+        const month = new Date().getMonth();
+        if (month >= 5 && month <= 8) { // Summer months
+          insights.push({
+            icon: 'fa-sun',
+            text: `Seasonal factors indicate <span class="insight-action">peak demand period</span> approaching`
+          });
+        } else if (month >= 11 || month <= 1) { // Winter months
+          insights.push({
+            icon: 'fa-snowflake',
+            text: `Seasonal factors suggest <span class="insight-action">moderate demand period</span>`
+          });
+        }
+        
+        // Add insights to the list
+        insightsList.innerHTML = insights.map(insight => `
+          <li>
+            <i class="fas ${insight.icon}"></i>
+            ${insight.text}
+          </li>
+        `).join('');
+      }
     } catch (error) {
       console.error('Error creating chart for product {{ product.id }}:', error);
     }
@@ -838,5 +887,69 @@ document.addEventListener('DOMContentLoaded', function() {
     });
   });
 });
+
+// Update the price prediction function to show next harvest price
+function updatePricePrediction(productId, currentPrice) {
+  const nextHarvestPrice = calculateNextHarvestPrice(currentPrice);
+  const priceChange = ((nextHarvestPrice - currentPrice) / currentPrice * 100).toFixed(2);
+  
+  document.getElementById(`nextHarvestPrice${productId}`).innerHTML = `
+    <strong>Next Harvest: $${nextHarvestPrice.toFixed(2)}/kg</strong>
+  `;
+  
+  document.getElementById(`priceChange${productId}`).innerHTML = `
+    <span class="${priceChange >= 0 ? 'text-success' : 'text-danger'}">
+      <i class="fas fa-${priceChange >= 0 ? 'arrow-up' : 'arrow-down'}"></i>
+      ${Math.abs(priceChange)}%
+    </span>
+  `;
+  
+  document.getElementById(`priceJudgment${productId}`).innerHTML = `
+    ${priceChange >= 0 ? 'Price expected to rise' : 'Price expected to fall'}
+  `;
+  
+  // Update the chart with the new data
+  updatePriceChart(productId, currentPrice, nextHarvestPrice);
+}
+
+// Function to calculate next harvest price based on market trends
+function calculateNextHarvestPrice(currentPrice) {
+  // Add your price calculation logic here
+  // This is a placeholder - replace with actual market analysis
+  const marketTrend = 1.1; // 10% increase
+  return currentPrice * marketTrend;
+}
+
+// Function to update the price chart
+function updatePriceChart(productId, currentPrice, nextHarvestPrice) {
+  const ctx = document.getElementById(`priceChart${productId}`).getContext('2d');
+  
+  new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: ['Current', 'Next Harvest'],
+      datasets: [{
+        label: 'Price Trend',
+        data: [currentPrice, nextHarvestPrice],
+        borderColor: '#28a745',
+        tension: 0.1
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: {
+          display: false
+        }
+      },
+      scales: {
+        y: {
+          beginAtZero: false
+        }
+      }
+    }
+  });
+}
 </script>
 {% endblock %}
